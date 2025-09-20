@@ -89,9 +89,16 @@ function Report() {
     fetchData();
   }, [reportId]);
 
-  if (loading) return <p>Caricamento report...</p>;
+  if (loading) return <div className="loader"></div>;
   if (error) return <p className="error">{error}</p>;
-  if (!data || data.length === 0) return <p>Nessun dato disponibile per questo report.</p>;
+  if (!data || data.length === 0) return (
+    <div className="no-data-message">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h-1.5a3.375 3.375 0 01-3.375-3.375V9.75m3.75 9.75h-3.75V9.75m3.75 9.75a1.125 1.125 0 01-1.125 1.125H3.375a3.375 3.375 0 01-3.375-3.375V11.25m18.75-4.5v2.25m18.75-4.5v2.25m-18.75 0h.008v.008h-.008V7.125zm0 0h.008v.008h-.008V7.125zm0 0h.008v.008h-.008V7.125zM12 6v.008H12.008V6H12z" />
+      </svg>
+      <p>Nessun dato disponibile per questo report.</p>
+    </div>
+  );
 
   const chartConfig = getChartConfig(reportId, data);
 
