@@ -1,0 +1,49 @@
+
+service: athena-dashboard-backend
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${file(./config.js):AWS_REGION}
+  environment:
+    ATHENA_DB: ${file(./config.js):ATHENA_DB}
+    ATHENA_OUTPUT_LOCATION: s3://${file(./config.js):ATHENA_RESULTS_BUCKET}/results/
+
+plugins:
+  - serverless-http
+  - serverless-offline
+  - serverless-iam-roles-per-function
+
+functions:
+  api:
+    handler: index.handler
+    events:
+      - httpApi: '*'
+    iamRoleStatements:
+      - Effect: "Allow"
+        Action:
+          - athena:StartQueryExecution
+          - athena:GetQueryExecution
+          - athena:GetQueryResults
+        Resource: "*" # Per semplicità, ma in produzione si può restringere
+      - Effect: "Allow"
+        Action:
+          - glue:GetTable
+        Resource:
+          - "arn:aws:glue:${aws:region}:${aws:accountId}:catalog"
+          - "arn:aws:glue:${aws:region}:${aws:accountId}:database/${self:provider.environment.ATHENA_DB}"
+          - "arn:aws:glue:${aws:region}:${aws:accountId}:table/${self:provider.environment.ATHENA_DB}/extracted_logs"
+      - Effect: "Allow"
+        Action:
+          - s3:GetObject
+          - s3:ListBucket
+          - s3:PutObject
+        Resource:
+          - "arn:aws:s3:::${self:provider.environment.ATHENA_OUTPUT_LOCATION}/*"
+          - "arn:aws:s3:::${self:provider.environment.ATHENA_OUTPUT_LOCATION}"
+
+custom:
+  serverless-offline:
+    httpPort: 3001
