@@ -1,7 +1,7 @@
 # Contesto Tecnico per lo Sviluppo di Dashboard su AWS
 
 ## 1. Obiettivo Finale
-L'obiettivo è creare un'applicazione web (frontend + backend) ospitata su AWS che visualizzi i dati di log provenienti dal servizio CloudConnexa. L'applicazione dovrà presentare i dati attraverso una serie di dashboard interattive per l'analisi di sicurezza e operativa.
+L'obiettivo è creare un'applicazione web (frontend + backend) ospitata su AWS che visualizzi i dati di log provenienti dal servizio CloudConnexa. L'applicazione dovrà presentare i dati attraverso una serie di dashboard interattive per l'analisi di sicurezza e operativa, con accesso protetto da autenticazione.
 
 ## 2. Architettura e Schema dei Dati
 
@@ -20,6 +20,9 @@ L'applicazione non gestisce l'ingestione o la memorizzazione dei log, ma solo la
 
 - **Motore di Query (Amazon Athena):**
   - È il servizio con cui il backend deve interagire per eseguire query SQL sui dati in S3.
+
+- **Autenticazione (AWS Cognito):**
+  - Gestisce il login degli utenti. Il frontend è protetto e solo gli utenti autenticati possono accedere alla dashboard e interrogare il backend.
 
 ### Struttura Dettagliata della Tabella `extracted_logs`
 
@@ -88,8 +91,10 @@ Per rendere il progetto facile da configurare, tutti i parametri che richiedono 
 
 ### Configurazione Frontend
 - **File:** `frontend/src/config.js`
-- **Scopo:** Contiene l'URL dell'API del backend.
-- **Azione richiesta:** Dopo il deploy del backend, è **obbligatorio** modificare il valore di `API_BASE_URL` con l'URL dell'API Gateway fornito da AWS.
+- **Scopo:** Contiene la configurazione per AWS Amplify (Cognito) e l'URL dell'API del backend.
+- **Azione richiesta:** 
+  - È **obbligatorio** compilare la sezione `cognito` con i dati del proprio User Pool (REGION, USER_POOL_ID, APP_CLIENT_ID).
+  - Dopo il deploy del backend, è **obbligatorio** modificare il valore di `API_BASE_URL` con l'URL dell'API Gateway fornito da AWS.
 
 ---
 
@@ -107,8 +112,9 @@ Il backend funge da intermediario tra il frontend e Athena.
 ## 5. Ruolo del Frontend (React)
 - **Scopo:** Applicazione single-page che fornisce l'interfaccia utente.
 - **Funzionamento:**
-  1.  Chiama gli endpoint del backend per recuperare i dati dei report.
-  2.  Utilizza una libreria di grafici (es. Chart.js) per visualizzare i dati ricevuti in formato JSON.
+  1.  Gestisce il flusso di autenticazione (login/logout) tramite i componenti UI di AWS Amplify.
+  2.  Chiama gli endpoint del backend per recuperare i dati dei report, includendo un token JWT per l'autorizzazione.
+  3.  Utilizza una libreria di grafici (es. Chart.js) per visualizzare i dati ricevuti in formato JSON.
 
 ---
 
@@ -128,6 +134,8 @@ npx serverless offline
 
 ### Terminale 2: Avvio del Frontend
 
+**Azione richiesta:** Prima di avviare, assicurati di aver compilato la sezione `cognito` nel file `frontend/src/config.js`.
+
 ```bash
 cd aws-serverless-app/frontend
 npm install
@@ -140,18 +148,25 @@ npm start
 
 Quando il progetto è pronto per essere pubblicato su AWS, segui questi passaggi:
 
-1.  **Configura il Backend:** Apri il file `backend/config.js` e inserisci il nome del tuo bucket S3 per i risultati di Athena nel campo `ATHENA_RESULTS_BUCKET`.
-2.  **Esegui il Deploy del Backend:** Dalla cartella `backend`, esegui il comando:
+1.  **Prerequisito: Crea un AWS Cognito User Pool**
+    - Vai alla console di AWS Cognito e crea un nuovo User Pool.
+    - All'interno del User Pool, crea un **App client**.
+    - Prendi nota di: **Region**, **User Pool ID**, e **App Client ID**.
+
+2.  **Configura il Backend:** Apri il file `backend/config.js` e inserisci il nome del tuo bucket S3 per i risultati di Athena nel campo `ATHENA_RESULTS_BUCKET`.
+3.  **Esegui il Deploy del Backend:** Dalla cartella `backend`, esegui il comando:
     ```bash
     npx serverless deploy
     ```
     Al termine, copia l'URL dell'endpoint API che ti viene mostrato.
-3.  **Configura il Frontend:** Apri il file `frontend/src/config.js` e incolla l'URL dell'API nel campo `API_BASE_URL`.
-4.  **Crea la Build di Produzione del Frontend:** Dalla cartella `frontend`, esegui:
+4.  **Configura il Frontend:** Apri il file `frontend/src/config.js` e:
+    - Incolla l'URL dell'API nel campo `API_BASE_URL`.
+    - Assicurati che la sezione `cognito` sia compilata con i dati corretti del tuo User Pool.
+5.  **Crea la Build di Produzione del Frontend:** Dalla cartella `frontend`, esegui:
     ```bash
     npm run build
     ```
-5.  **Carica il Frontend su S3:** Carica il contenuto della cartella `frontend/build` in un bucket S3 configurato per l'hosting di siti web statici.
+6.  **Carica il Frontend su S3:** Carica il contenuto della cartella `frontend/build` in un bucket S3 configurato per l'hosting di siti web statici.
 
 ---
 

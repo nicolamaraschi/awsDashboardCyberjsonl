@@ -1,6 +1,8 @@
+
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import StatusIndicator from './StatusIndicator'; // <-- Importo l'indicatore
+import StatusIndicator from './StatusIndicator';
+import { signOut } from 'aws-amplify/auth'; // <-- Importo signOut per il logout
 
 // Definiamo qui tutti i report per generare il menu
 export const reports = {
@@ -18,6 +20,15 @@ export const reports = {
 };
 
 function Sidebar() {
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      window.location.reload(); // Ricarica la pagina dopo il logout
+    } catch (error) {
+      console.error('Errore durante il logout:', error);
+    }
+  };
+
   return (
     <nav className="sidebar">
       <div className="sidebar-header">
@@ -33,6 +44,7 @@ function Sidebar() {
         ))}
       </ul>
       <div className="sidebar-footer">
+        <button onClick={handleLogout} className="logout-button">Logout</button>
         <StatusIndicator />
       </div>
     </nav>

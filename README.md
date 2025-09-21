@@ -5,6 +5,7 @@ Questo progetto implementa una dashboard web per visualizzare e analizzare i dat
 
 ## Caratteristiche Principali
 
+-   **Autenticazione Sicura**: Accesso protetto tramite AWS Cognito, con gestione utenti centralizzata dall'amministratore.
 -   **Dashboard Interattiva**: Visualizzazione immediata dei KPI e dei grafici più importanti all'avvio.
 -   **Report Dettagliati**: Accesso a 11 report predefiniti tramite una sidebar di navigazione.
 -   **Ricerca Parametrica**: Funzionalità di ricerca per utente o indirizzo IP specifico.
@@ -15,32 +16,26 @@ Questo progetto implementa una dashboard web per visualizzare e analizzare i dat
 
 ## Architettura del Sistema
 
-L'applicazione segue un'architettura serverless e si integra con la pipeline dati esistente:
+L'applicazione segue un'architettura serverless che include un sistema di autenticazione e si integra con la pipeline dati esistente:
 
 ```
-+-------------------+       +-------------------+       +-------------------+
-| CloudConnexa Logs | ----> | Amazon S3 (JSONL) | ----> | AWS Glue (Schema) |
-+-------------------+       +-------------------+       +-------------------+
-                                     |
-                                     | (Query Engine)
-                                     V
-+-------------------+       +-------------------+       +-------------------+
-| React Frontend    | <---> | AWS API Gateway   | <---> | AWS Lambda        |
-| (Browser / S3)    |       | (REST API)        |       | (Node.js Backend) |
-+-------------------+       +-------------------+       +-------------------+
-                                                             |
-                                                             | (AWS SDK)
-                                                             V
-                                                       +-------------------+
-                                                       | Amazon Athena     |
-                                                       +-------------------+
-                                                             |
-                                                             | (Query Results)
-                                                             V
-                                                       +-------------------+
-                                                       | Amazon S3         |
-                                                       | (Results Bucket)  |
-                                                       +-------------------+
++-------------------+      +-------------------+      +-------------------+
+| CloudConnexa Logs | ---->| Amazon S3 (JSONL) | ---->| AWS Glue (Schema) |
++-------------------+      +-------------------+      +-------------------+
+                                    |
+                                    | (Query Engine)
+                                    V
++-------------------+      +-------------------+      +-------------------+
+| React Frontend    | <--->| AWS Cognito       |      | Amazon Athena     |
+| (Browser / S3)    |      | (Authentication)  |      +-------------------+
++-------------------+      +-------------------+             ^
+       |                             |                       |
+       | (Authenticated API Calls)   | (User Login)          | (AWS SDK)
+       V                             V                       |
++-------------------+      +-------------------+             |
+| AWS API Gateway   | <--->| AWS Lambda        |-------------+
+| (Authorizer)      |      | (Node.js Backend) |
++-------------------+      +-------------------+ 
 ```
 
 ## Struttura dei Dati (Amazon Athena)
@@ -131,6 +126,7 @@ Modifica i file di configurazione per adattarli al tuo ambiente:
     -   Sostituisci `NOME_DEL_TUO_BUCKET_PER_RISULTATI_ATHENA` con il nome di un bucket S3 reale (che creerai nella regione `eu-west-1`) dove Athena salverà i risultati delle query.
 
 -   **Frontend**: Apri `frontend/src/config.js`
+    -   Nella sezione `cognito`, inserisci i dati del tuo User Pool: `REGION`, `USER_POOL_ID`, e `APP_CLIENT_ID`.
     -   Per lo sviluppo locale, `API_BASE_URL` è già impostato correttamente su `http://localhost:3001/dev`. Non modificarlo ora.
 
 ### 3. Avvia il Backend
@@ -155,13 +151,25 @@ npm install         # Solo la prima volta
 npm start
 ```
 
-Il browser si aprirà automaticamente all'indirizzo `http://localhost:3000`.
+Il browser si aprirà automaticamente all'indirizzo `http://localhost:3000` e mostrerà la pagina di login.
 
 ## Deploy su AWS
 
 Una volta che l'applicazione funziona correttamente in locale, puoi pubblicarla su AWS.
 
-### 1. Deploy del Backend (Lambda & API Gateway)
+### 1. Prerequisiti di Deploy: Crea un AWS Cognito User Pool
+
+Prima di deployare, devi creare un **Amazon Cognito User Pool** per gestire gli utenti.
+
+1.  Vai alla console di AWS Cognito nella regione che preferisci (es. `eu-west-1`).
+2.  Crea un nuovo User Pool.
+3.  All'interno del User Pool, crea un **App client**.
+4.  Prendi nota dei seguenti valori, perché ti serviranno per configurare il frontend:
+    -   **Region** (es. `eu-west-1`)
+    -   **User Pool ID**
+    -   **App Client ID**
+
+### 2. Deploy del Backend (Lambda & API Gateway)
 
 1.  **Assicurati di aver configurato `backend/config.js`** con il nome del tuo bucket S3 reale.
 2.  Dalla cartella `backend`, esegui il comando di deploy:
@@ -171,11 +179,12 @@ Una volta che l'applicazione funziona correttamente in locale, puoi pubblicarla 
     ```
 3.  Al termine del deploy (potrebbero volerci alcuni minuti), copia l'**URL dell'endpoint API** che verrà mostrato nell'output del terminale.
 
-### 2. Deploy del Frontend (Sito Statico su S3)
+### 3. Deploy del Frontend (Sito Statico su S3)
 
-1.  **Configura l'URL del Backend nel Frontend**:
+1.  **Configura il Frontend**: 
     *   Apri `frontend/src/config.js`.
     *   Sostituisci il valore di `API_BASE_URL` con l'URL dell'endpoint API che hai copiato al passo precedente.
+    *   Assicurati che la sezione `cognito` sia compilata con i valori corretti del tuo User Pool (Region, User Pool ID, App Client ID).
 2.  **Crea la Build di Produzione**:
     *   Dalla cartella `frontend`, esegui:
         ```bash
@@ -205,6 +214,5 @@ L'applicazione offre i seguenti report, accessibili tramite la sidebar:
 ## Contribuzione e Miglioramenti Futuri
 
 -   **Protezione SQL Injection**: Per un'applicazione di produzione, si raccomanda di implementare le query parametrizzate native di Athena per prevenire attacchi di SQL Injection.
--   **Autenticazione**: Aggiungere un sistema di autenticazione e autorizzazione per proteggere l'accesso alla dashboard.
 -   **Filtri Temporali**: Implementare filtri per intervalli di tempo personalizzati per i report.
 -   **Altre Query**: Integrare le query rimanenti (10, 12-16) e altre visualizzazioni.

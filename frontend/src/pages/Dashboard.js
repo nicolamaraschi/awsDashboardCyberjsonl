@@ -57,6 +57,7 @@ function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setError(null); // Resetta l'errore precedente
       try {
         const [kpiRes, topServicesRes, topUsersRes, latestBlockedRes] = await Promise.all([
           axios.get(`${API_URL}/api/reports/dashboard-kpis`),
@@ -65,30 +66,46 @@ function Dashboard() {
           axios.get(`${API_URL}/api/reports/latest-blocked`),
         ]);
 
-        setKpiData(kpiRes.data[0]);
-        setLatestBlocked(latestBlockedRes.data);
+        // Log dei dati ricevuti per debugging
+        console.log('Dati KPI:', kpiRes.data);
+        console.log('Dati Top Servizi:', topServicesRes.data);
+        console.log('Dati Top Utenti Bloccati:', topUsersRes.data);
+        console.log('Dati Ultime Connessioni:', latestBlockedRes.data);
 
-        setTopServicesData({
-          labels: topServicesRes.data.map(d => d.servizio_destinazione),
-          datasets: [{
-            label: 'Connessioni Riuscite',
-            data: topServicesRes.data.map(d => d.connessioni_riuscite),
-            backgroundColor: 'rgba(75, 192, 192, 0.6)',
-          }],
-        });
+        // Controlli di sicurezza sui dati
+        if (kpiRes.data && kpiRes.data.length > 0) {
+          setKpiData(kpiRes.data[0]);
+        }
 
-        setTopUsersBlockedData({
-          labels: topUsersRes.data.map(d => d.initiator),
-          datasets: [{
-            label: 'Connessioni Bloccate',
-            data: topUsersRes.data.map(d => d.numero_connessioni_bloccate),
-            backgroundColor: 'rgba(255, 99, 132, 0.6)',
-          }],
-        });
+        if (latestBlockedRes.data && Array.isArray(latestBlockedRes.data)) {
+          setLatestBlocked(latestBlockedRes.data);
+        }
+
+        if (topServicesRes.data && Array.isArray(topServicesRes.data)) {
+          setTopServicesData({
+            labels: topServicesRes.data.map(d => d.servizio_destinazione),
+            datasets: [{
+              label: 'Connessioni Riuscite',
+              data: topServicesRes.data.map(d => d.comannessioni_riuscite),
+              backgroundColor: 'rgba(75, 192, 192, 0.6)',
+            }],
+          });
+        }
+
+        if (topUsersRes.data && Array.isArray(topUsersRes.data)) {
+          setTopUsersBlockedData({
+            labels: topUsersRes.data.map(d => d.initiator),
+            datasets: [{
+              label: 'Connessioni Bloccate',
+              data: topUsersRes.data.map(d => d.numero_connessioni_bloccate),
+              backgroundColor: 'rgba(255, 99, 132, 0.6)',
+            }],
+          });
+        }
 
       } catch (err) {
         setError('Impossibile caricare i dati della dashboard.');
-        console.error(err);
+        console.error('Errore durante il fetch dei dati:', err);
       }
       setLoading(false);
     };
