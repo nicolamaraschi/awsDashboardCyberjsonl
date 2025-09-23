@@ -1,7 +1,7 @@
 
 service: athena-dashboard-backend
 
-frameworkVersion: '3'
+
 
 provider:
   name: aws
@@ -9,10 +9,9 @@ provider:
   region: ${file(./config.js):AWS_REGION}
   environment:
     ATHENA_DB: ${file(./config.js):ATHENA_DB}
-    ATHENA_OUTPUT_LOCATION: s3://${file(./config.js):ATHENA_RESULTS_BUCKET}/results/
+    ATHENA_OUTPUT_LOCATION: s3://${file(./config.js):ATHENA_RESULTS_BUCKET}/athena-results/
 
 plugins:
-  - serverless-http
   - serverless-offline
   - serverless-iam-roles-per-function
 
@@ -23,11 +22,11 @@ functions:
       - httpApi:
           path: /{proxy+}
           method: ANY
-          authorizer:
-            name: CognitoAuthorizer
-            type: COGNITO_USER_POOLS
-            pools:
-              - arn:aws:cognito-idp:${file(./config.js):AWS_REGION}:${aws:accountId}:userpool/YOUR_COGNITO_USER_POOL_ID # SOSTITUISCI CON IL TUO USER POOL ID
+          # authorizer:
+          #   name: CognitoAuthorizer
+          #   type: COGNITO_USER_POOLS
+          #   pools:
+          #     - arn:aws:cognito-idp:${file(./config.js):AWS_REGION}:${aws:accountId}:userpool/YOUR_COGNITO_USER_POOL_ID # SOSTITUISCI CON IL TUO USER POOL ID
     iamRoleStatements:
       - Effect: "Allow"
         Action:
@@ -48,8 +47,9 @@ functions:
           - s3:ListBucket
           - s3:PutObject
         Resource:
-          - "arn:aws:s3:::${self:provider.environment.ATHENA_OUTPUT_LOCATION}/*"
+          - "arn:aws:s3:::${self:provider.environment.ATHENA_OUTPUT_LOCATION}*"
           - "arn:aws:s3:::${self:provider.environment.ATHENA_OUTPUT_LOCATION}"
+      
 
 custom:
   serverless-offline:

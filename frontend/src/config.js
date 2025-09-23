@@ -46,7 +46,7 @@ const getApiUrl = () => {
     }
     return appConfig.API_BASE_URL;
   }
-  return 'http://localhost:3001/dev';
+  return 'http://localhost:3001';
 };
 
 export const API_URL = getApiUrl();

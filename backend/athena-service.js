@@ -20,11 +20,12 @@ async function runQuery(query) {
   const params = {
     QueryString: query,
     QueryExecutionContext: {
-      Database: ATHENA_DB
+      Database: ATHENA_DB,
     },
     ResultConfiguration: {
-      OutputLocation: ATHENA_OUTPUT_LOCATION
-    }
+      OutputLocation: `s3://${config.ATHENA_RESULTS_BUCKET}/athena-results/`,
+    },
+    WorkGroup: config.ATHENA_WORKGROUP, // Specifica il workgroup corretto
   };
 
   // 1. Avvia la query
@@ -38,7 +39,9 @@ async function runQuery(query) {
     if (state === 'SUCCEEDED') {
       break; // Esce dal loop se la query ha successo
     } else if (state === 'FAILED' || state === 'CANCELLED') {
-      throw new Error(`Query failed or was cancelled. State: ${state}`);
+      const reason = QueryExecution.Status.StateChangeReason;
+      console.error('La query Athena è fallita. Motivo:', reason);
+      throw new Error(`Query fallita o cancellata. Motivo: ${reason}`);
     }
 
     // Attende 2 secondi prima di controllare di nuovo

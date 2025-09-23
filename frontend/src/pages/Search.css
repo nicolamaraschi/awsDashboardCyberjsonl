@@ -1,0 +1,136 @@
+/* Stile generale per la pagina di ricerca */
+.search-page {
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.search-page h1 {
+  color: #333;
+  margin-bottom: 2rem;
+}
+
+/* Contenitore per il costruttore di filtri */
+.filter-builder {
+  background-color: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.filter-builder h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #555;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 0.5rem;
+}
+
+/* Stile per ogni riga di filtro */
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.filter-row select,
+.filter-row input[type="text"] {
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  flex-grow: 1;
+}
+
+.filter-row select {
+  flex-grow: 0.5;
+}
+
+/* Bottoni */
+.add-btn, .search-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.add-btn {
+  background-color: #e7e7e7;
+  color: #333;
+}
+
+.add-btn:hover {
+  background-color: #dcdcdc;
+}
+
+.search-actions {
+  margin-bottom: 2rem;
+}
+
+.search-btn {
+  background-color: #007bff;
+  color: white;
+}
+
+.search-btn:hover {
+  background-color: #0056b3;
+}
+
+.search-btn:disabled {
+  background-color: #a0c7ff;
+  cursor: not-allowed;
+}
+
+.remove-btn {
+  background-color: transparent;
+  color: #dc3545;
+  border: 1px solid #dc3545;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.remove-btn:hover {
+  background-color: #dc3545;
+  color: white;
+}
+
+/* Sezione Risultati */
+.results-section h2 {
+  color: #333;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 0.5rem;
+  margin-top: 2rem;
+}
+
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 0.75rem 1rem;
+  border: 1px solid #ddd;
+  text-align: left;
+  white-space: nowrap;
+}
+
+th {
+  background-color: #f2f2f2;
+  font-weight: 600;
+}
+
+tr:nth-child(even) {
+  background-color: #f9f9f9;
+}

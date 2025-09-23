@@ -17,8 +17,8 @@
     "serverless-http": "^4.0.0"
   },
   "devDependencies": {
-    "serverless": "^4.19.1",
+    "serverless": "^3.40.0",
     "serverless-iam-roles-per-function": "^3.2.0",
-    "serverless-offline": "^14.4.0"
+    "serverless-offline": "^12.0.0"
   }
 }

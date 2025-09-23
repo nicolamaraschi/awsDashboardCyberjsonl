@@ -1,136 +1,75 @@
-// Questo file contiene le query SQL predefinite da eseguire su Athena.
+// Lista bianca delle colonne consentite per il filtraggio per prevenire SQL injection
+const ALLOWED_COLUMNS = [
+  'timestamp',
+  'initiator',
+  'log.destinationentityip',
+  'log.destinationport',
+  'log.destinationparentname',
+  'log.allowed',
+  'log.sourceip',
+  'log.protocolname'
+];
 
-const queries = {
-  // 1 - Report Dettagliato Traffico Bloccato
-  DETAILED_BLOCKED_TRAFFIC: `...`,
-
-  // ... (le altre query esistenti)
-
-  // 11 - Analisi Oraria Connessioni Bloccate
-  HOURLY_BLOCKED_ANALYSIS: `...`,
-
-  // === NUOVE QUERY PER LA DASHBOARD ===
-
-  // 12 - KPI Dashboard
-  DASHBOARD_KPIS: `
-    WITH last_24h AS (
-        SELECT *
-        FROM "cloudconnexa_logs_db"."extracted_logs"
-        WHERE from_iso8601_timestamp(timestamp) > now() - interval '24' hour
-    )
-    SELECT 
-        COUNT(*) AS total_connections,
-        APPROX_DISTINCT(initiator) AS unique_users,
-        CAST(COUNT_IF(log.allowed = false) AS DOUBLE) * 100 / COUNT(*) AS blocked_percentage
-    FROM last_24h;
-  `,
-
-  // 13 - Ultime Connessioni Bloccate
-  LATEST_BLOCKED: `
-    SELECT 
-        timestamp, 
-        initiator,
-        "log"."destinationentityname" AS servizio_destinazione
-    FROM 
-        "cloudconnexa_logs_db"."extracted_logs"
-    WHERE 
-        "log"."allowed" = false
-    ORDER BY 
-        timestamp DESC
-    LIMIT 5;
-  `
+// Funzione base di sanitizzazione per escapare gli apici singoli
+const sanitize = (value) => {
+  if (typeof value === 'string') {
+    // Sostituisce un apice singolo con due apici singoli per l'SQL
+    return value.replace(/'/g, "''");
+  }
+  if (typeof value === 'number') {
+    return value;
+  }
+  // Per sicurezza, se non è una stringa o un numero, non lo includiamo nella query
+  return null;
 };
 
-// Esporto il contenuto completo, sostituendo i placeholder
-const fullQueries = JSON.parse(JSON.stringify(queries)
-  .replace('"DETAILED_BLOCKED_TRAFFIC": `...`', `"DETAILED_BLOCKED_TRAFFIC": \
-    SELECT\
-      timestamp,\n      initiator,\n      publicip AS ip_pubblico_sorgente,\n      "log"."sourceip" AS ip_vpn_sorgente,\n      "log"."destinationentityname" AS servizio_destinazione,\n      "log"."destinationentityip" AS ip_destinazione,\n      "log"."destinationport" AS porta,\n      "log"."protocolname" AS protocollo\
-    FROM "cloudconnexa_logs_db"."extracted_logs"\
-    WHERE "log"."allowed" = false\
-    ORDER BY timestamp DESC;\
-  `)
-  .replace('"HOURLY_BLOCKED_ANALYSIS": `...`', `"HOURLY_BLOCKED_ANALYSIS": \
-    SELECT\
-      substr("timestamp", 12, 2) AS ora_del_giorno,\n      count(*) AS totale_connessioni_bloccate\
-    FROM "cloudconnexa_logs_db"."extracted_logs"\
-    WHERE "log"."allowed" = false\
-    GROUP BY substr("timestamp", 12, 2)\
-    ORDER BY ora_del_giorno ASC;\
-  `)
-  .replace('"... (le altre query esistenti)"', `"TOP_USERS_BLOCKED": \
-    SELECT\
-      initiator,\n      count(*) AS numero_connessioni_bloccate\
-    FROM "cloudconnexa_logs_db"."extracted_logs"\
-    WHERE "log"."allowed" = false\
-    GROUP BY initiator\
-    ORDER BY numero_connessioni_bloccate DESC\
-    LIMIT 20;\
-  `,\
-  "TOP_SERVICES_BLOCKED": \
-    SELECT\
-      "log"."destinationentityname" AS servizio_destinazione,\n      "log"."destinationentityip" AS ip_destinazione,\n      count(*) AS tentativi_bloccati\
-    FROM "cloudconnexa_logs_db"."extracted_logs"\
-    WHERE "log"."allowed" = false\
-    GROUP BY "log"."destinationentityname", "log"."destinationentityip"\
-    ORDER BY tentativi_bloccati DESC\
-    LIMIT 20;\
-  `,\
-  "UNUSUAL_PORTS_BLOCKED": \
-    SELECT\
-      timestamp,\n      initiator,\n      "log"."sourceip" AS ip_sorgente,\n      "log"."destinationentityip" AS ip_destinazione,\n      "log"."destinationport" AS porta\
-    FROM "cloudconnexa_logs_db"."extracted_logs"\
-    WHERE\
-      "log"."allowed" = false AND\
-      "log"."destinationport" NOT IN (80, 443, 3389, 22, 53)\
-    ORDER BY "log"."destinationport" ASC;\
-  `,\
-  "ALLOWED_VS_BLOCKED_SUMMARY": \
-    SELECT\
-      CASE\
-        WHEN "log"."allowed" = true THEN 'Consentite'\
-        ELSE 'Bloccate'\
-      END AS stato_connessione,\n      count(*) AS totale\
-    FROM "cloudconnexa_logs_db"."extracted_logs"\
-    GROUP BY "log"."allowed";\
-  `,\
-  "TOP_ACTIVE_USERS": \
-    SELECT\
-      initiator,\n      count(*) as numero_totale_connessioni\
-    FROM "cloudconnexa_logs_db"."extracted_logs"\
-    GROUP BY initiator\
-    ORDER BY numero_totale_connessioni DESC\
-    LIMIT 20;\
-  `,\
-  "TOP_USED_SERVICES": \
-    SELECT\
-      "log"."destinationentityname" AS servizio_destinazione,\n      count(*) AS connessioni_riuscite\
-    FROM "cloudconnexa_logs_db"."extracted_logs"\
-    WHERE "log"."allowed" = true\
-    GROUP BY "log"."destinationentityname"\
-    ORDER BY connessioni_riuscite DESC\
-    LIMIT 20;\
-  `,\
-  "USER_ACTIVITY_TRACE": \
-    SELECT\
-      timestamp,\n      "log"."allowed" AS consentita,\n      "log"."sourceip" AS ip_sorgente,\n      "log"."destinationentityname" AS servizio_destinazione,\n      "log"."destinationentityip" AS ip_destinazione,\n      "log"."destinationport" AS porta\
-    FROM "cloudconnexa_logs_db"."extracted_logs"\
-    WHERE initiator = '%USER_PLACEHOLDER%' -- NOME UTENTE DA MODIFICARE\
-    ORDER BY timestamp DESC;\
-  `,\
-  "DESTINATION_IP_ACTIVITY": \
-    SELECT\
-      timestamp,\n      initiator,\n      "log"."sourceip" AS ip_sorgente,\n      "log"."allowed" AS consentita\
-    FROM "cloudconnexa_logs_db"."extracted_logs"\
-    WHERE "log"."destinationentityip" = '%IP_PLACEHOLDER%' -- IP SERVER DA MODIFICARE\
-    ORDER BY timestamp DESC;\
-  `,\
-  "USER_GEOMAP": \
-    SELECT\
-      publicip,\n      count(*) as numero_connessioni\
-    FROM "cloudconnexa_logs_db"."extracted_logs"\
-    GROUP BY publicip\
-    ORDER BY numero_connessioni DESC;\
-  `));
+const buildDynamicQuery = (criteria) => {
+  // Query di base
+  const baseSelect = `
+    SELECT
+      timestamp,
+      initiator,
+      "log"."destinationentityip" AS DestinationIP,
+      "log"."destinationport" AS DestinationPort,
+      "log"."destinationparentname" AS Customer,
+      "log"."allowed" AS Allowed
+    FROM "cloudconnexa_logs_db"."extracted_logs"
+  `;
 
-module.exports = fullQueries;
+  const whereClauses = [];
+
+  // Elabora i filtri aggiuntivi
+  if (criteria.filters && Array.isArray(criteria.filters)) {
+    criteria.filters.forEach(filter => {
+      // SICUREZZA: Controlla se la colonna è nella whitelist
+      if (filter.field && ALLOWED_COLUMNS.includes(filter.field) && filter.value !== undefined && filter.value !== '') {
+        const sanitizedValue = sanitize(filter.value);
+        
+        if (sanitizedValue !== null) {
+          // Per semplicità, per ora supportiamo solo l'operatore '='.
+          // Potremo estenderlo in futuro con LIKE, >, <, etc.
+          const operator = '='; 
+          const fieldName = filter.field.includes('.') ? `"${filter.field.split('.')[0]}"."${filter.field.split('.')[1]}"` : `"${filter.field}"`;
+          
+          // Gestisce i valori numerici senza apici
+          const valueWrapper = typeof sanitizedValue === 'number' ? sanitizedValue : `'${sanitizedValue}'`;
+
+          whereClauses.push(`${fieldName} ${operator} ${valueWrapper}`);
+        }
+      }
+    });
+  }
+
+  let finalQuery = baseSelect;
+  if (whereClauses.length > 0) {
+    finalQuery += ' WHERE ' + whereClauses.join(' AND ');
+  }
+
+  finalQuery += ' ORDER BY timestamp DESC LIMIT 500;'; // Aggiungo un limite per sicurezza e performance
+
+  console.log('Query Dinamica Costruita:', finalQuery);
+  return finalQuery;
+};
+
+module.exports = { buildDynamicQuery };
+
