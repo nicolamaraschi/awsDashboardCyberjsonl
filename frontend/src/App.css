@@ -334,3 +334,39 @@ th, td {
   margin-bottom: 10px;
   color: #ccc;
 }
+
+/* --- Media Queries per Responsività --- */
+@media (max-width: 768px) {
+  .App-container {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    z-index: 1000;
+    transform: translateX(0);
+    transition: transform 0.3s ease-in-out;
+  }
+
+  .sidebar-closed .sidebar {
+    transform: translateX(-100%);
+    width: 280px; /* Mantiene la larghezza per l'animazione */
+    padding: 20px;
+  }
+
+  .main-content {
+    width: 100%;
+    padding-top: 70px; /* Spazio per il bottone toggle */
+  }
+
+  .sidebar-toggle {
+    position: fixed; /* Fisso rispetto alla viewport */
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr; /* Una colonna su mobile */
+  }
+}

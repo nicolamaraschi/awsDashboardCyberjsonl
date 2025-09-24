@@ -18,6 +18,7 @@ plugins:
 functions:
   api:
     handler: index.handler
+    timeout: 30 # Aumenta il timeout a 30 secondi
     events:
       - httpApi:
           path: /{proxy+}

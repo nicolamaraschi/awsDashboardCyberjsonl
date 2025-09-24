@@ -11,13 +11,13 @@ function Sidebar() {
       </div>
       <ul className="report-list">
         <li>
-          <NavLink to="/search/by-ip" className={({ isActive }) => isActive ? "active" : ""}>
-            Ricerca per IP
+          <NavLink to="/search/flow-established" className={({ isActive }) => isActive ? "active" : ""}>
+            Estrazione Flussi
           </NavLink>
         </li>
         <li>
-          <NavLink to="/search/by-user" className={({ isActive }) => isActive ? "active" : ""}>
-            Ricerca per Utente
+          <NavLink to="/search/domain-blocked" className={({ isActive }) => isActive ? "active" : ""}>
+            Analisi Domini Bloccati
           </NavLink>
         </li>
       </ul>

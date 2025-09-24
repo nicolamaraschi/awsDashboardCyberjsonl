@@ -17,10 +17,10 @@ function App() {
             ☰
           </button>
           <Routes>
-            {/* La pagina principale reindirizza alla ricerca per IP */}
-            <Route path="/" element={<Navigate to="/search/by-ip" />} />
+            {/* La pagina principale reindirizza alla prima ricerca di default */}
+            <Route path="/" element={<Navigate to="/search/flow-established" />} />
             
-            {/* La rotta di ricerca gestisce entrambi i tipi (by-ip, by-user) */}
+            {/* La rotta dinamica gestisce entrambe le pagine di ricerca */}
             <Route path="/search/:type" element={<Search />} />
           </Routes>
         </main>
