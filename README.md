@@ -9,6 +9,7 @@ Questo progetto implementa un'applicazione web per esplorare, filtrare e analizz
 -   **Selezione Colonne ed Esportazione**: Possibilità di scegliere quali colonne visualizzare nei risultati e di esportare i dati in formato Excel (.xlsx) nativo.
 -   **Backend Serverless e Sicuro**: Implementato con Node.js su AWS Lambda, API Gateway e un costruttore di query dinamiche con whitelist per prevenire SQL injection.
 -   **Frontend Moderno**: Realizzato con React e React Router per la navigazione e la gestione dello stato.
+-   **Design Responsivo**: L'interfaccia si adatta per una migliore usabilità su dispositivi mobili.
 -   **Configurazione Semplificata**: Parametri di deploy centralizzati in file `config.js` dedicati.
 
 ## Architettura del Sistema

@@ -75,10 +75,10 @@ const HistorySelector = ({ history, onLoad, onDelete }) => {
   }, [wrapperRef]);
 
   return (
-    <div className="column-selector" ref={wrapperRef}>
+    <div className="history-selector" ref={wrapperRef}>
       <button onClick={() => setIsOpen(!isOpen)} className="add-btn">Cronologia ({history.length})</button>
       {isOpen && (
-        <div className="column-dropdown history-dropdown">
+        <div className="history-dropdown">
           {history.length === 0 ? (
             <div className="history-item">Nessuna ricerca salvata.</div>
           ) : (

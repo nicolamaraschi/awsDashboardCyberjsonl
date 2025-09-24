@@ -49,14 +49,23 @@ const buildDynamicQuery = (criteria, fieldMap, defaultSelectKeys, baseWhere) => 
       if (filter.field && allowedFilterKeys.includes(filter.field) && filter.value !== undefined && filter.value !== '') {
         const fieldInfo = fieldMap[filter.field];
         const sanitizedValue = sanitize(filter.value);
-        
         if (sanitizedValue !== null && fieldInfo) {
-          // Whitelist degli operatori consentiti
           const allowedOperators = ['=', 'LIKE'];
           const operator = filter.operator && allowedOperators.includes(filter.operator.toUpperCase()) ? filter.operator.toUpperCase() : '=';
           
-          const valueWrapper = (fieldInfo.type === 'number' || fieldInfo.type === 'boolean') ? sanitizedValue : `'${sanitizedValue}'`;
-          whereClauses.push(`${fieldInfo.sql} ${operator} ${valueWrapper}`);
+          let fieldExpression = fieldInfo.sql;
+          let valueWrapper = `'${sanitizedValue}'`; // Default a stringa
+
+          // Gestisce i tipi numerici e booleani in modo corretto
+          if (fieldInfo.type === 'number') {
+            // Se il campo è un numero, casta l'espressione SQL e non mettere apici al valore
+            fieldExpression = `CAST(${fieldInfo.sql} AS INTEGER)`;
+            valueWrapper = sanitizedValue;
+          } else if (fieldInfo.type === 'boolean') {
+            valueWrapper = sanitizedValue;
+          }
+
+          whereClauses.push(`${fieldExpression} ${operator} ${valueWrapper}`);
         }
       }
     });

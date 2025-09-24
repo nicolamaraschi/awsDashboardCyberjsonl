@@ -104,3 +104,11 @@ Tutta l'architettura dei report statici è stata sostituita da un sistema di int
   - **SELECT Builder:** Costruisce la clausola `SELECT` partendo dall'array `selectFields`, validando ogni campo contro una whitelist di sicurezza (`ALL_SELECTABLE_FIELDS`).
   - **WHERE Builder:** Costruisce la clausola `WHERE` partendo dall'array `filters`, validando i campi (`ALLOWED_FILTER_COLUMNS`) e sanificando i valori per prevenire SQL injection.
   - La funzione assembla e restituisce la query SQL completa e sicura da eseguire.
+
+---
+
+## 8. Note Tecniche e Correzioni Recenti
+
+- **Gestione Tipi in Query**: La funzione `buildDynamicQuery` nel backend è stata aggiornata per usare `CAST(... AS INTEGER)` sui campi numerici estratti da JSON. Questo risolve errori di `TYPE_MISMATCH` in Athena quando si filtra per un numero (es. porta).
+- **Rendering Tabella Frontend**: Il componente `ResultsTable` è stato modificato per ricevere la lista di colonne (`headers`) come `prop`, invece di inferirla dalla prima riga di dati. Questo risolve un bug di rendering che nascondeva colonne quando la prima riga non conteneva tutti i campi selezionati.
+- **Responsività**: Sono state aggiunte media query ai file `App.css` e `Search.css` per migliorare l'usabilità su schermi con larghezza inferiore a 768px, gestendo la sidebar, i filtri e l'overflow della tabella dei risultati.
