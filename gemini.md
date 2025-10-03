@@ -66,6 +66,26 @@ Il backend funge da intermediario sicuro tra il frontend e Athena.
 
 **Prerequisito:** Aver configurato le credenziali AWS (`aws configure`) con un utente IAM che abbia i permessi necessari per Athena, Glue e S3.
 
+### Esecuzione con Docker
+
+**Prerequisito:**
+- Docker e Docker Compose installati.
+- Le variabili d'ambiente AWS (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_REGION`) devono essere disponibili nella shell in cui si esegue il comando.
+
+Per avviare l'intera applicazione (frontend e backend) con un solo comando:
+
+```bash
+docker-compose up --build
+```
+
+- Il frontend sarà accessibile su `http://localhost:3000`.
+- Il backend sarà accessibile su `http://localhost:3001`.
+
+### Esecuzione Manuale (Senza Docker)
+
+
+**Prerequisito:** Aver configurato le credenziali AWS (`aws configure`) con un utente IAM che abbia i permessi necessari per Athena, Glue e S3.
+
 ### Terminale 1: Avvio del Backend
 
 ```bash

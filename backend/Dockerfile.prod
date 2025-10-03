@@ -1,0 +1,19 @@
+# Usa un'immagine Node.js ufficiale
+FROM node:18-alpine
+
+WORKDIR /usr/src/app
+
+# Copia package.json e package-lock.json
+COPY package*.json ./
+
+# Installa le dipendenze di produzione
+RUN npm ci --only=production
+
+# Copia il resto del codice dell'applicazione
+COPY . .
+
+# Esponi la porta su cui l'app è in ascolto
+EXPOSE 3001
+
+# Comando per avviare l'applicazione
+CMD ["node", "server.js"]

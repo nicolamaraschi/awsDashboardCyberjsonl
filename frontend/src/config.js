@@ -38,14 +38,14 @@ const amplifyV6Config = {
 export default amplifyV6Config;
 
 
-// Logica per usare l'URL corretto in base all'ambiente (sviluppo vs produzione)
+// Logica per usare l'URL corretto in base all'ambiente
 const getApiUrl = () => {
-  if (process.env.NODE_ENV === 'production') {
-    if (appConfig.API_BASE_URL === 'http://localhost:3001/dev') {
-      console.warn('ATTENZIONE: Stai usando l\'URL di localhost in produzione. Ricordati di aggiornare frontend/src/config.js!');
-    }
-    return appConfig.API_BASE_URL;
+  // Se la variabile d'ambiente REACT_APP_API_BASE_URL è impostata (es. da Docker), usa quella.
+  if (process.env.REACT_APP_API_BASE_URL) {
+    return process.env.REACT_APP_API_BASE_URL;
   }
+  
+  // Altrimenti, usa l'URL per lo sviluppo locale standard.
   return 'http://localhost:3001';
 };
 
