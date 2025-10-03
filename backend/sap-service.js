@@ -1,8 +1,8 @@
-
 const athenaService = require('./athena-service');
 const config = require('./config');
 
-const DB_NAME = 'sap_reports_db'; // As per the user prompt
+const DB_NAME = config.SAP_ATHENA_DB; // Use config variable
+const WORKGROUP_NAME = config.SAP_ATHENA_WORKGROUP; // Use config variable
 
 // Helper to build the WHERE clause for clients
 const buildClientFilter = (clients) => {
@@ -59,66 +59,103 @@ const getDumpTypesQuery = (startDate, endDate, clients) => {
     LIMIT 10
   `;
 };
+const getClients = async () => {
+  try {
+    const query = `
+      SELECT DISTINCT nomecliente
+      FROM reportparquet
+      ORDER BY nomecliente
+    `;
+    
+    console.log('Getting clients with query:', query);
+    const result = await runQuery(query, DB_NAME, WORKGROUP_NAME);
+    console.log('Clients result:', result);
 
+    return result.map(r => r.nomecliente);
+  } catch (error) {
+    console.error('Error in getClients:', error);
+    throw error;
+  }
+};
 
 const getDashboardData = async (startDate, endDate, clients) => {
-  const kpiQuery = getKpiQuery(startDate, endDate, clients);
-  const clientIssuesQuery = getClientIssuesQuery(startDate, endDate, clients);
-  const dumpTypesQuery = getDumpTypesQuery(startDate, endDate, clients);
+  console.log('=== getDashboardData called ===');
+  console.log('Parameters:', { startDate, endDate, clients });
+  
+  try {
+    const kpiQuery = getKpiQuery(startDate, endDate, clients);
+    const clientIssuesQuery = getClientIssuesQuery(startDate, endDate, clients);
+    const dumpTypesQuery = getDumpTypesQuery(startDate, endDate, clients);
 
-  // Run queries in parallel
-  const [kpiResult, clientIssuesResult, dumpTypesResult] = await Promise.all([
-    athenaService.runQuery(kpiQuery, DB_NAME),
-    athenaService.runQuery(clientIssuesQuery, DB_NAME),
-    athenaService.runQuery(dumpTypesQuery, DB_NAME),
-  ]);
+    console.log('KPI Query:', kpiQuery);
+    console.log('Client Issues Query:', clientIssuesQuery);
+    console.log('Dump Types Query:', dumpTypesQuery);
 
-  // Format the results
-  const kpis = kpiResult.length > 0 ? {
-    totalDumps: kpiResult[0].totalDumps,
-    failedBackups: kpiResult[0].failedBackups,
-    cancelledJobs: kpiResult[0].cancelledJobs,
-  } : { totalDumps: 0, failedBackups: 0, cancelledJobs: 0 };
+    // Run queries in parallel
+    const [kpiResult, clientIssuesResult, dumpTypesResult] = await Promise.all([
+      athenaService.runQuery(kpiQuery, DB_NAME, WORKGROUP_NAME),
+    athenaService.runQuery(clientIssuesQuery, DB_NAME, WORKGROUP_NAME),
+    athenaService.runQuery(dumpTypesQuery, DB_NAME, WORKGROUP_NAME),
+    ]);
 
-  const clientIssues = {
-    labels: clientIssuesResult.map(r => r.nomecliente),
-    datasets: [{
-      label: 'Numero di Problemi',
-      data: clientIssuesResult.map(r => r.issue_count),
-      backgroundColor: 'rgba(54, 162, 235, 0.5)',
-    }]
-  };
+    console.log('KPI Result:', JSON.stringify(kpiResult, null, 2));
+    console.log('Client Issues Result:', JSON.stringify(clientIssuesResult, null, 2));
+    console.log('Dump Types Result:', JSON.stringify(dumpTypesResult, null, 2));
 
-  const dumpTypes = {
-    labels: dumpTypesResult.map(r => r.short_dump_type),
-    datasets: [{
-      data: dumpTypesResult.map(r => r.dump_count),
-      backgroundColor: [
-        'rgba(255, 99, 132, 0.8)',
-        'rgba(54, 162, 235, 0.8)',
-        'rgba(255, 206, 86, 0.8)',
-        'rgba(75, 192, 192, 0.8)',
-        'rgba(153, 102, 255, 0.8)',
-      ],
-    }]
-  };
+    // Format the results
+    const kpis = kpiResult.length > 0 ? {
+      totalDumps: kpiResult[0].totalDumps,
+      failedBackups: kpiResult[0].failedBackups,
+      cancelledJobs: kpiResult[0].cancelledJobs,
+    } : { totalDumps: 0, failedBackups: 0, cancelledJobs: 0 };
 
-  return {
-    kpis,
-    clientIssues,
-    dumpTypes,
-  };
+    const clientIssues = {
+      labels: clientIssuesResult.map(r => r.nomecliente),
+      datasets: [{
+        label: 'Numero di Problemi',
+        data: clientIssuesResult.map(r => r.issue_count),
+        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+      }]
+    };
+
+    const dumpTypes = {
+      labels: dumpTypesResult.map(r => r.short_dump_type),
+      datasets: [{
+        data: dumpTypesResult.map(r => r.dump_count),
+        backgroundColor: [
+          'rgba(255, 99, 132, 0.8)',
+          'rgba(54, 162, 235, 0.8)',
+          'rgba(255, 206, 86, 0.8)',
+          'rgba(75, 192, 192, 0.8)',
+          'rgba(153, 102, 255, 0.8)',
+        ],
+      }]
+    };
+
+    console.log('Formatted response:', JSON.stringify({ kpis, clientIssues, dumpTypes }, null, 2));
+
+    return {
+      kpis,
+      clientIssues,
+      dumpTypes,
+    };
+  } catch (error) {
+    console.error('Error in getDashboardData:', error);
+    throw error; // Rilancia l'errore per essere catturato dal controller
+  }
 };
+
 
 // Also, a function to get all clients to populate the filter dropdown
 const getAllClients = async () => {
     const query = 'SELECT DISTINCT nomecliente FROM reportparquet ORDER BY nomecliente';
-    const results = await athenaService.runQuery(query, DB_NAME);
+    const results = await athenaService.runQuery(query, DB_NAME, WORKGROUP_NAME);
     return results.map(r => r.nomecliente);
 }
 
 
 module.exports = {
+  getClients,
   getDashboardData,
   getAllClients,
 };

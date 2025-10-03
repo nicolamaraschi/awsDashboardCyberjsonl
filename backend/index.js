@@ -9,6 +9,7 @@ const {
   DOMAIN_BLOCKED_FIELDS,
   DOMAIN_BLOCKED_DEFAULTS,
 } = require('./queries');
+const sapService = require('./sap-service');
 
 const app = express();
 app.use(cors());
@@ -48,6 +49,62 @@ app.post(
   '/api/domain-blocked',
   createSearchEndpoint(DOMAIN_BLOCKED_FIELDS, DOMAIN_BLOCKED_DEFAULTS, "eventname = 'domain-blocked'")
 );
+
+app.get('/api/sap/clients', async (req, res) => {
+  try {
+    console.log('=== SAP Clients Request ===');
+    
+    // La tua logica per recuperare i clienti
+    const clients = await sapService.getClients(); // o simile
+    
+    console.log('Clients retrieved:', clients);
+    
+    res.json(clients);
+  } catch (error) {
+    console.error('=== Error in /api/sap/clients ===');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Error fetching clients.',
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/sap/dashboard', async (req, res) => {
+  try {
+    console.log('=== SAP Dashboard Request ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
+    const { startDate, endDate, selectedClients } = req.body;
+    
+    if (!startDate || !endDate) {
+      console.log('Missing startDate or endDate');
+      return res.status(400).json({ error: 'startDate and endDate are required.' });
+    }
+    
+    console.log('Calling sapService.getDashboardData with:', {
+      startDate,
+      endDate,
+      selectedClients
+    });
+    
+    const data = await sapService.getDashboardData(startDate, endDate, selectedClients);
+    
+    console.log('Dashboard data received:', JSON.stringify(data, null, 2));
+    
+    res.json(data);
+  } catch (error) {
+    console.error('=== Error in /api/sap/dashboard ===');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Error fetching SAP dashboard data.',
+      details: error.message 
+    });
+  }
+});
+
 
 // Gestione errori 404
 app.use((req, res) => {

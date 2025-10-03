@@ -21,6 +21,16 @@ function Sidebar() {
           </NavLink>
         </li>
       </ul>
+      <div className="sidebar-header">
+        <h3>SAP</h3>
+      </div>
+      <ul className="report-list">
+        <li>
+          <NavLink to="/sap-dashboard" className={({ isActive }) => isActive ? "active" : ""}>
+            Dashboard
+          </NavLink>
+        </li>
+      </ul>
     </nav>
   );
 }

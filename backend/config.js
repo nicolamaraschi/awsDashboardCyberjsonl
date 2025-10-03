@@ -8,4 +8,8 @@ module.exports = {
   ATHENA_DB: 'cloudconnexa_logs_db',
   ATHENA_RESULTS_BUCKET: 'horsaruncloudconnexalog', // Bucket S3 per i risultati di Athena
   ATHENA_WORKGROUP: 'hrun-cloudconnexa-wg',
+
+  // Configurazione per i report SAP
+  SAP_ATHENA_DB: 'sap_reports_db',
+  SAP_ATHENA_WORKGROUP: 'ReportCheckSistemiSap',
 };

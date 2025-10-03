@@ -42,6 +42,14 @@ functions:
           - "arn:aws:glue:${aws:region}:${aws:accountId}:catalog"
           - "arn:aws:glue:${aws:region}:${aws:accountId}:database/${self:provider.environment.ATHENA_DB}"
           - "arn:aws:glue:${aws:region}:${aws:accountId}:table/${self:provider.environment.ATHENA_DB}/extracted_logs"
+          - "arn:aws:glue:${aws:region}:${aws:accountId}:database/${file(./config.js):SAP_ATHENA_DB}"
+          - "arn:aws:glue:${aws:region}:${aws:accountId}:table/${file(./config.js):SAP_ATHENA_DB}/reportparquet"
+      - Effect: "Allow"
+        Action:
+          - athena:GetWorkGroup
+          - athena:ListWorkGroups
+        Resource:
+          - "arn:aws:athena:${aws:region}:${aws:accountId}:workgroup/${file(./config.js):SAP_ATHENA_WORKGROUP}"
       - Effect: "Allow"
         Action:
           - s3:GetObject

@@ -16,16 +16,16 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  * @param {string} query La stringa SQL da eseguire.
  * @returns {Promise<Array>} Una promessa che si risolve con i risultati della query.
  */
-async function runQuery(query) {
+async function runQuery(query, db = ATHENA_DB, workgroup = config.ATHENA_WORKGROUP) {
   const params = {
     QueryString: query,
     QueryExecutionContext: {
-      Database: ATHENA_DB,
+      Database: db,
     },
     ResultConfiguration: {
       OutputLocation: `s3://${config.ATHENA_RESULTS_BUCKET}/athena-results/`,
     },
-    WorkGroup: config.ATHENA_WORKGROUP, // Specifica il workgroup corretto
+    WorkGroup: workgroup, // Specifica il workgroup corretto
   };
 
   // 1. Avvia la query
