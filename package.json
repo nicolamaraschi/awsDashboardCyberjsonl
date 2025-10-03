@@ -1,4 +1,18 @@
 {
+  "name": "aws-serverless-app-root",
+  "version": "1.0.0",
+  "description": "Root package for AWS Serverless App",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"npm --prefix backend run offline\" \"npm --prefix frontend start\"",
+    "install-all": "npm install && npm --prefix backend install && npm --prefix frontend install"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
   "dependencies": {
     "aws-amplify": "^6.15.6"
   }
