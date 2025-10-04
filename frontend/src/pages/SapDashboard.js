@@ -32,9 +32,14 @@ const SAPDashboard = () => {
   useEffect(() => {
     if (selectedClients.length > 0) {
       loadAvailableSIDs(selectedClients);
+      // Reset dei SID selezionati quando cambiano i clienti
+      setSelectedSIDs([]);
     } else {
-      loadAvailableSIDs([]);
+      // Se non ci sono clienti selezionati, svuota i SID disponibili
+      setAvailableSIDs([]);
+      setSelectedSIDs([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedClients]);
 
   // Carica i dati iniziali
@@ -65,10 +70,13 @@ const SAPDashboard = () => {
 
   const loadAvailableSIDs = async (clients) => {
     try {
+      console.log('Frontend: Carico SID per clienti:', clients);
       const response = await axios.post(`${API_URL}/api/sap/sids`, { clients });
+      console.log('Frontend: SID ricevuti:', response.data);
       setAvailableSIDs(response.data);
     } catch (err) {
       console.error('Errore nel caricamento dei SID:', err);
+      setAvailableSIDs([]);
     }
   };
 

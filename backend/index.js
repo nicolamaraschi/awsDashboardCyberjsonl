@@ -1,7 +1,7 @@
 const express = require('express');
 const serverless = require('serverless-http');
 const cors = require('cors');
-const { runQuery } = require('./athena-service');
+const { runQuery, runSAPQuery } = require('./athena-service');
 const {
   buildDynamicQuery,
   FLOW_ESTABLISHED_FIELDS,
@@ -70,7 +70,7 @@ app.post(
 app.get('/api/sap/clients', async (req, res) => {
   try {
     const query = getAvailableClientsQuery();
-    const results = await runQuery(query);
+    const results = await runSAPQuery(query);
     res.json(results);
   } catch (error) {
     console.error('Errore nel recupero dei clienti:', error);
@@ -83,7 +83,7 @@ app.post('/api/sap/sids', async (req, res) => {
   try {
     const { clients } = req.body;
     const query = getAvailableSIDsQuery(clients);
-    const results = await runQuery(query);
+    const results = await runSAPQuery(query);
     res.json(results);
   } catch (error) {
     console.error('Errore nel recupero dei SID:', error);
@@ -110,15 +110,15 @@ app.post('/api/sap/dashboard', async (req, res) => {
       prevBackupsData,
       prevJobsData
     ] = await Promise.all([
-      runQuery(getTotalDumpsQuery(filters)),
-      runQuery(getFailedBackupsQuery(filters)),
-      runQuery(getCancelledJobsQuery(filters)),
-      runQuery(getServicesKOQuery(filters)),
-      runQuery(getDumpTypesQuery(filters)),
-      runQuery(getIssuesByClientQuery(filters)),
-      runQuery(getPreviousPeriodData(filters, 'dumps')),
-      runQuery(getPreviousPeriodData(filters, 'backups')),
-      runQuery(getPreviousPeriodData(filters, 'jobs'))
+      runSAPQuery(getTotalDumpsQuery(filters)),
+      runSAPQuery(getFailedBackupsQuery(filters)),
+      runSAPQuery(getCancelledJobsQuery(filters)),
+      runSAPQuery(getServicesKOQuery(filters)),
+      runSAPQuery(getDumpTypesQuery(filters)),
+      runSAPQuery(getIssuesByClientQuery(filters)),
+      runSAPQuery(getPreviousPeriodData(filters, 'dumps')),
+      runSAPQuery(getPreviousPeriodData(filters, 'backups')),
+      runSAPQuery(getPreviousPeriodData(filters, 'jobs'))
     ]);
 
     // Calcola i totali
