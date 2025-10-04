@@ -50,33 +50,14 @@ app.post(
   createSearchEndpoint(DOMAIN_BLOCKED_FIELDS, DOMAIN_BLOCKED_DEFAULTS, "eventname = 'domain-blocked'")
 );
 
-app.get('/api/sap/clients', async (req, res) => {
-  try {
-    console.log('=== SAP Clients Request ===');
-    
-    // La tua logica per recuperare i clienti
-    const clients = await sapService.getClients(); // o simile
-    
-    console.log('Clients retrieved:', clients);
-    
-    res.json(clients);
-  } catch (error) {
-    console.error('=== Error in /api/sap/clients ===');
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ 
-      error: 'Error fetching clients.',
-      details: error.message 
-    });
-  }
-});
+
 
 app.post('/api/sap/dashboard', async (req, res) => {
   try {
     console.log('=== SAP Dashboard Request ===');
     console.log('Request body:', JSON.stringify(req.body, null, 2));
     
-    const { startDate, endDate, selectedClients } = req.body;
+    const { startDate, endDate, selectedClients, selectedSids } = req.body;
     
     if (!startDate || !endDate) {
       console.log('Missing startDate or endDate');
@@ -86,10 +67,11 @@ app.post('/api/sap/dashboard', async (req, res) => {
     console.log('Calling sapService.getDashboardData with:', {
       startDate,
       endDate,
-      selectedClients
+      selectedClients,
+      selectedSids
     });
     
-    const data = await sapService.getDashboardData(startDate, endDate, selectedClients);
+    const data = await sapService.getDashboardData(req.body);
     
     console.log('Dashboard data received:', JSON.stringify(data, null, 2));
     
@@ -105,6 +87,18 @@ app.post('/api/sap/dashboard', async (req, res) => {
   }
 });
 
+
+
+
+app.get('/api/sap/dump-types', async (req, res) => {
+  try {
+    const dumpTypes = await sapService.getDistinctDumpTypes();
+    res.json(dumpTypes);
+  } catch (error) {
+    console.error('Error fetching distinct dump types:', error);
+    res.status(500).json({ error: 'Error fetching distinct dump types.' });
+  }
+});
 
 // Gestione errori 404
 app.use((req, res) => {

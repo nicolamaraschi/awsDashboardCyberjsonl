@@ -75,4 +75,12 @@ function formatResults(results) {
     });
 }
 
-module.exports = { runQuery };
+const { buildSapDashboardQuery } = require('./sap-queries');
+
+async function getSapDashboardData(params, db, workgroup) {
+  const query = buildSapDashboardQuery(params);
+  console.log('Executing SAP Dashboard Query:', query);
+  return await runQuery(query, db, workgroup);
+}
+
+module.exports = { runQuery, getSapDashboardData };
