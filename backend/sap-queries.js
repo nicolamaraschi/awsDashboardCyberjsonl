@@ -174,6 +174,73 @@ const getAvailableSIDsQuery = (clients) => {
   return query;
 };
 
+// Query 9: Andamento servizi nel tempo (per grafico lineare)
+const getServicesTimelineQuery = (filters) => {
+  const whereClause = buildBaseWhere(filters);
+  
+  return `
+    SELECT 
+      datacontrollo,
+      nomecliente,
+      SUM(CASE WHEN stato_servizi.dump = 'ko' THEN 1 ELSE 0 END) as dump_ko,
+      SUM(CASE WHEN stato_servizi.job_in_errore = 'ko' THEN 1 ELSE 0 END) as job_ko,
+      SUM(CASE WHEN stato_servizi.processi_attivi = 'ko' THEN 1 ELSE 0 END) as processi_ko,
+      SUM(CASE WHEN stato_servizi.spazio_database = 'ko' THEN 1 ELSE 0 END) as db_ko,
+      SUM(CASE WHEN stato_servizi.spazio_log = 'ko' THEN 1 ELSE 0 END) as log_ko,
+      SUM(CASE WHEN stato_servizi.scadenza_certificati = 'ko' THEN 1 ELSE 0 END) as cert_ko,
+      SUM(CASE WHEN stato_servizi.update_in_errore = 'ko' THEN 1 ELSE 0 END) as update_ko,
+      SUM(CASE WHEN stato_servizi.spool = 'ko' THEN 1 ELSE 0 END) as spool_ko
+    FROM "sap_reports_db"."reportparquet"
+    ${whereClause}
+    GROUP BY datacontrollo, nomecliente
+    ORDER BY datacontrollo ASC
+  `;
+};
+
+// Query 10: Andamento problemi aggregati nel tempo (dumps, backups, jobs)
+const getProblemsTimelineQuery = (filters) => {
+  const whereClause = buildBaseWhere(filters);
+  
+  return `
+    WITH daily_dumps AS (
+      SELECT 
+        datacontrollo,
+        COUNT(*) as dump_count
+      FROM "sap_reports_db"."reportparquet"
+      CROSS JOIN UNNEST(abap_short_dumps) AS t(dump)
+      ${whereClause}
+      GROUP BY datacontrollo
+    ),
+    daily_backups AS (
+      SELECT 
+        datacontrollo,
+        COUNT(*) as backup_count
+      FROM "sap_reports_db"."reportparquet"
+      CROSS JOIN UNNEST(situazione_backup) AS t(backup)
+      ${whereClause ? whereClause + ' AND' : 'WHERE'} (backup.status LIKE '%failed%' OR backup.status LIKE '%FAILED%')
+      GROUP BY datacontrollo
+    ),
+    daily_jobs AS (
+      SELECT 
+        datacontrollo,
+        COUNT(*) as job_count
+      FROM "sap_reports_db"."reportparquet"
+      CROSS JOIN UNNEST(abap_batch_jobs) AS t(job)
+      ${whereClause ? whereClause + ' AND' : 'WHERE'} job.status = 'CANCELLED'
+      GROUP BY datacontrollo
+    )
+    SELECT 
+      COALESCE(dd.datacontrollo, db.datacontrollo, dj.datacontrollo) as datacontrollo,
+      COALESCE(dd.dump_count, 0) as dumps,
+      COALESCE(db.backup_count, 0) as failed_backups,
+      COALESCE(dj.job_count, 0) as cancelled_jobs
+    FROM daily_dumps dd
+    FULL OUTER JOIN daily_backups db ON dd.datacontrollo = db.datacontrollo
+    FULL OUTER JOIN daily_jobs dj ON COALESCE(dd.datacontrollo, db.datacontrollo) = dj.datacontrollo
+    ORDER BY datacontrollo ASC
+  `;
+};
+
 // Query per calcolare i trend (periodo precedente)
 const getPreviousPeriodData = (filters, type) => {
   // Calcola il periodo precedente basandosi sul range di date

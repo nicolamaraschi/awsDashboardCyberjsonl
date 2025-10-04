@@ -10,7 +10,6 @@ const {
   DOMAIN_BLOCKED_DEFAULTS,
 } = require('./queries');
 
-// Import SAP queries
 const {
   getTotalDumpsQuery,
   getFailedBackupsQuery,
@@ -20,21 +19,20 @@ const {
   getIssuesByClientQuery,
   getAvailableClientsQuery,
   getAvailableSIDsQuery,
-  getPreviousPeriodData
+  getPreviousPeriodData,
+  getServicesTimelineQuery,
+  getProblemsTimelineQuery
 } = require('./sap-queries');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Funzione helper per creare un gestore di endpoint di ricerca
 const createSearchEndpoint = (fieldMap, defaultSelectKeys, baseWhere) => async (req, res) => {
   const criteria = req.body;
-
   if (!criteria) {
     return res.status(400).json({ error: 'Corpo della richiesta mancante.' });
   }
-
   try {
     const query = buildDynamicQuery(criteria, fieldMap, defaultSelectKeys, baseWhere);
     const results = await runQuery(query);
@@ -45,28 +43,13 @@ const createSearchEndpoint = (fieldMap, defaultSelectKeys, baseWhere) => async (
   }
 };
 
-// ========== ENDPOINT CLOUDCONNEXA ==========
-
-// Endpoint di base per un controllo di salute
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Endpoint per la ricerca "Flow Established"
-app.post(
-  '/api/flow-established',
-  createSearchEndpoint(FLOW_ESTABLISHED_FIELDS, FLOW_ESTABLISHED_DEFAULTS, "eventname = 'flow-established'")
-);
+app.post('/api/flow-established', createSearchEndpoint(FLOW_ESTABLISHED_FIELDS, FLOW_ESTABLISHED_DEFAULTS, "eventname = 'flow-established'"));
+app.post('/api/domain-blocked', createSearchEndpoint(DOMAIN_BLOCKED_FIELDS, DOMAIN_BLOCKED_DEFAULTS, "eventname = 'domain-blocked'"));
 
-// Endpoint per la ricerca "Domain Blocked"
-app.post(
-  '/api/domain-blocked',
-  createSearchEndpoint(DOMAIN_BLOCKED_FIELDS, DOMAIN_BLOCKED_DEFAULTS, "eventname = 'domain-blocked'")
-);
-
-// ========== ENDPOINT SAP ==========
-
-// Endpoint per ottenere i clienti disponibili
 app.get('/api/sap/clients', async (req, res) => {
   try {
     const query = getAvailableClientsQuery();
@@ -78,7 +61,6 @@ app.get('/api/sap/clients', async (req, res) => {
   }
 });
 
-// Endpoint per ottenere i SID disponibili (opzionalmente filtrati per cliente)
 app.post('/api/sap/sids', async (req, res) => {
   try {
     const { clients } = req.body;
@@ -91,14 +73,11 @@ app.post('/api/sap/sids', async (req, res) => {
   }
 });
 
-// Endpoint principale per la dashboard SAP
 app.post('/api/sap/dashboard', async (req, res) => {
   try {
     const filters = req.body;
-    
     console.log('Filtri ricevuti:', filters);
 
-    // Esegui tutte le query in parallelo per ottimizzare le performance
     const [
       dumpsData,
       backupsData,
@@ -108,7 +87,9 @@ app.post('/api/sap/dashboard', async (req, res) => {
       issuesByClientData,
       prevDumpsData,
       prevBackupsData,
-      prevJobsData
+      prevJobsData,
+      servicesTimelineData,
+      problemsTimelineData
     ] = await Promise.all([
       runSAPQuery(getTotalDumpsQuery(filters)),
       runSAPQuery(getFailedBackupsQuery(filters)),
@@ -118,15 +99,18 @@ app.post('/api/sap/dashboard', async (req, res) => {
       runSAPQuery(getIssuesByClientQuery(filters)),
       runSAPQuery(getPreviousPeriodData(filters, 'dumps')),
       runSAPQuery(getPreviousPeriodData(filters, 'backups')),
-      runSAPQuery(getPreviousPeriodData(filters, 'jobs'))
+      runSAPQuery(getPreviousPeriodData(filters, 'jobs')),
+      runSAPQuery(getServicesTimelineQuery(filters)),
+      runSAPQuery(getProblemsTimelineQuery(filters))
     ]);
 
-    // Calcola i totali
+    console.log('Services Timeline rows:', servicesTimelineData.length);
+    console.log('Problems Timeline rows:', problemsTimelineData.length);
+
     const totalDumps = dumpsData.reduce((sum, row) => sum + parseInt(row.total_dumps || 0), 0);
     const totalFailedBackups = backupsData.reduce((sum, row) => sum + parseInt(row.failed_backups || 0), 0);
     const totalCancelledJobs = jobsData.reduce((sum, row) => sum + parseInt(row.cancelled_jobs || 0), 0);
 
-    // Calcola i trend (confronto con periodo precedente)
     const prevTotalDumps = prevDumpsData.reduce((sum, row) => sum + parseInt(row.total_dumps || 0), 0);
     const prevTotalBackups = prevBackupsData.reduce((sum, row) => sum + parseInt(row.failed_backups || 0), 0);
     const prevTotalJobs = prevJobsData.reduce((sum, row) => sum + parseInt(row.cancelled_jobs || 0), 0);
@@ -135,7 +119,6 @@ app.post('/api/sap/dashboard', async (req, res) => {
     const backupsTrend = prevTotalBackups > 0 ? ((totalFailedBackups - prevTotalBackups) / prevTotalBackups * 100).toFixed(1) : 0;
     const jobsTrend = prevTotalJobs > 0 ? ((totalCancelledJobs - prevTotalJobs) / prevTotalJobs * 100).toFixed(1) : 0;
 
-    // Conta servizi in KO
     let servicesKO = 0;
     servicesData.forEach(row => {
       if (row.dump_status === 'ko') servicesKO++;
@@ -146,30 +129,16 @@ app.post('/api/sap/dashboard', async (req, res) => {
 
     res.json({
       kpis: {
-        totalDumps: {
-          value: totalDumps,
-          trend: parseFloat(dumpsTrend),
-          trendLabel: dumpsTrend > 0 ? `+${dumpsTrend}%` : `${dumpsTrend}%`
-        },
-        failedBackups: {
-          value: totalFailedBackups,
-          trend: parseFloat(backupsTrend),
-          trendLabel: backupsTrend > 0 ? `+${backupsTrend}%` : `${backupsTrend}%`
-        },
-        cancelledJobs: {
-          value: totalCancelledJobs,
-          trend: parseFloat(jobsTrend),
-          trendLabel: jobsTrend > 0 ? `+${jobsTrend}%` : `${jobsTrend}%`
-        },
-        servicesKO: {
-          value: servicesKO,
-          trend: 0,
-          trendLabel: 'N/A'
-        }
+        totalDumps: { value: totalDumps, trend: parseFloat(dumpsTrend), trendLabel: dumpsTrend > 0 ? `+${dumpsTrend}%` : `${dumpsTrend}%` },
+        failedBackups: { value: totalFailedBackups, trend: parseFloat(backupsTrend), trendLabel: backupsTrend > 0 ? `+${backupsTrend}%` : `${backupsTrend}%` },
+        cancelledJobs: { value: totalCancelledJobs, trend: parseFloat(jobsTrend), trendLabel: jobsTrend > 0 ? `+${jobsTrend}%` : `${jobsTrend}%` },
+        servicesKO: { value: servicesKO, trend: 0, trendLabel: 'N/A' }
       },
       charts: {
         issuesByClient: issuesByClientData,
-        dumpTypes: dumpTypesData
+        dumpTypes: dumpTypesData,
+        servicesTimeline: servicesTimelineData,
+        problemsTimeline: problemsTimelineData
       },
       rawData: {
         dumps: dumpsData,
@@ -181,14 +150,10 @@ app.post('/api/sap/dashboard', async (req, res) => {
 
   } catch (error) {
     console.error('Errore nella dashboard SAP:', error);
-    res.status(500).json({ 
-      error: 'Errore durante il recupero dei dati della dashboard.',
-      details: error.message 
-    });
+    res.status(500).json({ error: 'Errore durante il recupero dei dati della dashboard.', details: error.message });
   }
 });
 
-// Gestione errori 404
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint non trovato' });
 });
