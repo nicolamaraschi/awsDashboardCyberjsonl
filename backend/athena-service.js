@@ -1,10 +1,5 @@
-
 const AWS = require('aws-sdk');
 const config = require('./config');
-
-// Usa le variabili d'ambiente fornite da serverless.yml, con un fallback a config.js
-const ATHENA_DB = process.env.ATHENA_DB || config.ATHENA_DB;
-const ATHENA_OUTPUT_LOCATION = process.env.ATHENA_OUTPUT_LOCATION || `s3://${config.ATHENA_RESULTS_BUCKET}/results/`;
 
 const athena = new AWS.Athena();
 
@@ -14,19 +9,35 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 /**
  * Esegue una query su Athena e attende il completamento.
  * @param {string} query La stringa SQL da eseguire.
+ * @param {Object} options Opzioni aggiuntive (database, workgroup, outputLocation)
  * @returns {Promise<Array>} Una promessa che si risolve con i risultati della query.
  */
-async function runQuery(query, db = ATHENA_DB, workgroup = config.ATHENA_WORKGROUP) {
+async function runQuery(query, options = {}) {
+  // Determina quale database e workgroup usare
+  const database = options.database || process.env.ATHENA_DB || config.ATHENA_DB;
+  const workgroup = options.workgroup || config.ATHENA_WORKGROUP;
+  const outputLocation = options.outputLocation || 
+    process.env.ATHENA_OUTPUT_LOCATION || 
+    `s3://${config.ATHENA_RESULTS_BUCKET}/athena-results/`;
+
   const params = {
     QueryString: query,
     QueryExecutionContext: {
-      Database: db,
+      Database: database,
     },
     ResultConfiguration: {
-      OutputLocation: `s3://${config.ATHENA_RESULTS_BUCKET}/athena-results/`,
+      OutputLocation: outputLocation,
     },
-    WorkGroup: workgroup, // Specifica il workgroup corretto
+    WorkGroup: workgroup,
   };
+
+  console.log('Esecuzione query Athena:', {
+    database,
+    workgroup,
+    queryPreview: query.substring(0, 200) + '...'
+  });
+  
+  console.log('Query completa:', query);
 
   // 1. Avvia la query
   const { QueryExecutionId } = await athena.startQueryExecution(params).promise();
@@ -41,6 +52,7 @@ async function runQuery(query, db = ATHENA_DB, workgroup = config.ATHENA_WORKGRO
     } else if (state === 'FAILED' || state === 'CANCELLED') {
       const reason = QueryExecution.Status.StateChangeReason;
       console.error('La query Athena è fallita. Motivo:', reason);
+      console.error('Query completa:', query);
       throw new Error(`Query fallita o cancellata. Motivo: ${reason}`);
     }
 
@@ -51,6 +63,19 @@ async function runQuery(query, db = ATHENA_DB, workgroup = config.ATHENA_WORKGRO
   // 3. Ottiene i risultati
   const results = await athena.getQueryResults({ QueryExecutionId }).promise();
   return formatResults(results);
+}
+
+/**
+ * Esegue una query SAP specificando il database e workgroup corretti
+ * @param {string} query La stringa SQL da eseguire
+ * @returns {Promise<Array>} Una promessa che si risolve con i risultati della query
+ */
+async function runSAPQuery(query) {
+  return runQuery(query, {
+    database: config.SAP_ATHENA_DB,
+    workgroup: config.SAP_ATHENA_WORKGROUP,
+    outputLocation: `s3://${config.ATHENA_RESULTS_BUCKET}/sap-results/`
+  });
 }
 
 /**
@@ -75,12 +100,4 @@ function formatResults(results) {
     });
 }
 
-const { buildSapDashboardQuery } = require('./sap-queries');
-
-async function getSapDashboardData(params, db, workgroup) {
-  const query = buildSapDashboardQuery(params);
-  console.log('Executing SAP Dashboard Query:', query);
-  return await runQuery(query, db, workgroup);
-}
-
-module.exports = { runQuery, getSapDashboardData };
+module.exports = { runQuery, runSAPQuery };

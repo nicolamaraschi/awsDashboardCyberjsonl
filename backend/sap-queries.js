@@ -1,135 +1,244 @@
-// Configurazione dei campi disponibili per il filtro
-const SAP_FILTER_FIELDS = {
-  'nomecliente': { sql: 'nomecliente', type: 'string' },
-  'sid': { sql: 'sid', type: 'string' },
-  'datacontrollo': { sql: 'datacontrollo', type: 'date' },
+// ====================================================================
+// SAP QUERIES - Query per Dashboard SAP
+// ====================================================================
+
+const sanitize = (value) => {
+  if (typeof value === 'string') return value.replace(/'/g, "''");
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+  return null;
 };
 
-// Costruisce la clausola WHERE basata sui filtri
-const buildWhereClause = (filters) => {
+// Costruisce la clausola WHERE base per i filtri comuni
+const buildBaseWhere = (filters) => {
   const conditions = [];
   
+  if (filters.startDate && filters.endDate) {
+    conditions.push(`datacontrollo BETWEEN '${sanitize(filters.startDate)}' AND '${sanitize(filters.endDate)}'`);
+  }
+  
   if (filters.clients && filters.clients.length > 0) {
-    const clientList = filters.clients.map(c => `'${c.replace(/'/g, "''")}'`).join(',');
+    const clientList = filters.clients.map(c => `'${sanitize(c)}'`).join(',');
     conditions.push(`nomecliente IN (${clientList})`);
   }
   
   if (filters.sids && filters.sids.length > 0) {
-    const sidList = filters.sids.map(s => `'${s.replace(/'/g, "''")}'`).join(',');
+    const sidList = filters.sids.map(s => `'${sanitize(s)}'`).join(',');
     conditions.push(`sid IN (${sidList})`);
-  }
-  
-  if (filters.dateFrom) {
-    conditions.push(`datacontrollo >= '${filters.dateFrom}'`);
-  }
-  
-  if (filters.dateTo) {
-    conditions.push(`datacontrollo <= '${filters.dateTo}'`);
   }
   
   return conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 };
 
-// Query per ottenere i KPI principali
-const getKPIQuery = (filters) => {
-  const whereClause = buildWhereClause(filters);
+// Query 1: Total Dumps con trend
+const getTotalDumpsQuery = (filters) => {
+  const whereClause = buildBaseWhere(filters);
   
   return `
     SELECT 
-      COUNT(DISTINCT nomecliente) as total_clients,
-      COUNT(DISTINCT sid) as total_sids,
-      SUM(cardinality(abap_short_dumps)) as total_dumps,
-      SUM(cardinality(filter(situazione_backup, b -> b.status LIKE '%fail%'))) as failed_backups,
-      SUM(cardinality(filter(abap_batch_jobs, j -> j.status = 'CANCELLED'))) as cancelled_jobs,
-      SUM(CASE WHEN stato_servizi.dump = 'ko' THEN 1 ELSE 0 END) as days_with_dump_issues,
-      SUM(CASE WHEN stato_servizi.job_in_errore = 'ko' THEN 1 ELSE 0 END) as days_with_job_issues
-    FROM sap_reports_db.reportparquet
+      nomecliente,
+      datacontrollo,
+      COUNT(*) as total_dumps
+    FROM "sap_reports_db"."reportparquet"
+    CROSS JOIN UNNEST(abap_short_dumps) AS t(dump)
+    ${whereClause}
+    GROUP BY nomecliente, datacontrollo
+  `;
+};
+
+// Query 2: Failed Backups
+const getFailedBackupsQuery = (filters) => {
+  const whereClause = buildBaseWhere(filters);
+  
+  return `
+    SELECT 
+      nomecliente,
+      COUNT(*) as failed_backups,
+      datacontrollo
+    FROM "sap_reports_db"."reportparquet"
+    CROSS JOIN UNNEST(situazione_backup) AS t(backup)
+    ${whereClause ? whereClause + ' AND' : 'WHERE'} (backup.status LIKE '%failed%' OR backup.status LIKE '%FAILED%')
+    GROUP BY nomecliente, datacontrollo
+  `;
+};
+
+// Query 3: Cancelled Jobs
+const getCancelledJobsQuery = (filters) => {
+  const whereClause = buildBaseWhere(filters);
+  
+  return `
+    SELECT 
+      nomecliente,
+      COUNT(*) as cancelled_jobs,
+      datacontrollo
+    FROM "sap_reports_db"."reportparquet"
+    CROSS JOIN UNNEST(abap_batch_jobs) AS t(job)
+    ${whereClause ? whereClause + ' AND' : 'WHERE'} job.status = 'CANCELLED'
+    GROUP BY nomecliente, datacontrollo
+  `;
+};
+
+// Query 4: Servizi in KO per cliente
+const getServicesKOQuery = (filters) => {
+  const whereClause = buildBaseWhere(filters);
+  
+  return `
+    SELECT 
+      nomecliente,
+      datacontrollo,
+      stato_servizi.dump as dump_status,
+      stato_servizi.job_in_errore as job_error_status,
+      stato_servizi.processi_attivi as active_processes_status,
+      stato_servizi.spazio_database as db_space_status,
+      stato_servizi.spazio_log as log_space_status
+    FROM "sap_reports_db"."reportparquet"
     ${whereClause}
   `;
 };
 
-// Query per dump types distribution
+// Query 5: Dump Types Distribution
 const getDumpTypesQuery = (filters) => {
-  const whereClause = buildWhereClause(filters);
+  const whereClause = buildBaseWhere(filters);
   
   return `
     SELECT 
-      dump.short_dump_type,
-      COUNT(*) as count
-    FROM sap_reports_db.reportparquet
+      dump.short_dump_type as dump_type,
+      COUNT(*) as count,
+      nomecliente
+    FROM "sap_reports_db"."reportparquet"
     CROSS JOIN UNNEST(abap_short_dumps) AS t(dump)
     ${whereClause}
-    GROUP BY dump.short_dump_type
+    GROUP BY dump.short_dump_type, nomecliente
     ORDER BY count DESC
-    LIMIT 10
   `;
 };
 
-// Query per dumps by client
-const getDumpsByClientQuery = (filters) => {
-  const whereClause = buildWhereClause(filters);
-  
-  return `
-    SELECT 
-      nomecliente,
-      COUNT(*) as dump_count,
-      COUNT(DISTINCT dump.short_dump_type) as unique_types
-    FROM sap_reports_db.reportparquet
-    CROSS JOIN UNNEST(abap_short_dumps) AS t(dump)
-    ${whereClause}
-    GROUP BY nomecliente
-    ORDER BY dump_count DESC
-  `;
-};
-
-// Query per issues by client and type
+// Query 6: Issues by Client & Type (aggregato)
 const getIssuesByClientQuery = (filters) => {
-  const whereClause = buildWhereClause(filters);
+  const whereClause = buildBaseWhere(filters);
   
   return `
+    WITH dumps AS (
+      SELECT nomecliente, COUNT(*) as dump_count
+      FROM "sap_reports_db"."reportparquet"
+      CROSS JOIN UNNEST(abap_short_dumps) AS t(dump)
+      ${whereClause}
+      GROUP BY nomecliente
+    ),
+    failed_backups AS (
+      SELECT nomecliente, COUNT(*) as backup_count
+      FROM "sap_reports_db"."reportparquet"
+      CROSS JOIN UNNEST(situazione_backup) AS t(backup)
+      ${whereClause ? whereClause + ' AND' : 'WHERE'} (backup.status LIKE '%failed%' OR backup.status LIKE '%FAILED%')
+      GROUP BY nomecliente
+    ),
+    cancelled_jobs AS (
+      SELECT nomecliente, COUNT(*) as job_count
+      FROM "sap_reports_db"."reportparquet"
+      CROSS JOIN UNNEST(abap_batch_jobs) AS t(job)
+      ${whereClause ? whereClause + ' AND' : 'WHERE'} job.status = 'CANCELLED'
+      GROUP BY nomecliente
+    )
     SELECT 
-      nomecliente,
-      sid,
-      SUM(CASE WHEN stato_servizi.dump = 'ko' THEN 1 ELSE 0 END) as dump_issues,
-      SUM(CASE WHEN stato_servizi.job_in_errore = 'ko' THEN 1 ELSE 0 END) as job_issues,
-      SUM(cardinality(filter(situazione_backup, b -> b.status LIKE '%fail%'))) as backup_failures,
-      SUM(cardinality(filter(abap_batch_jobs, j -> j.status = 'CANCELLED'))) as cancelled_jobs
-    FROM sap_reports_db.reportparquet
-    ${whereClause}
-    GROUP BY nomecliente, sid
-    ORDER BY nomecliente, sid
+      COALESCE(d.nomecliente, fb.nomecliente, cj.nomecliente) as nomecliente,
+      COALESCE(d.dump_count, 0) as dumps,
+      COALESCE(fb.backup_count, 0) as failed_backups,
+      COALESCE(cj.job_count, 0) as cancelled_jobs
+    FROM dumps d
+    FULL OUTER JOIN failed_backups fb ON d.nomecliente = fb.nomecliente
+    FULL OUTER JOIN cancelled_jobs cj ON COALESCE(d.nomecliente, fb.nomecliente) = cj.nomecliente
   `;
 };
 
-// Query per ottenere lista di clienti disponibili
-const getClientsListQuery = () => {
+// Query 7: Lista clienti disponibili
+const getAvailableClientsQuery = () => {
   return `
-    SELECT DISTINCT nomecliente 
-    FROM sap_reports_db.reportparquet 
+    SELECT DISTINCT nomecliente
+    FROM "sap_reports_db"."reportparquet"
     ORDER BY nomecliente
   `;
 };
 
-// Query per ottenere lista di SIDs disponibili per i clienti selezionati
-const getSIDsListQuery = (clients) => {
-  if (!clients || clients.length === 0) {
-    return `SELECT DISTINCT sid FROM sap_reports_db.reportparquet ORDER BY sid`;
+// Query 8: Lista SID disponibili per i clienti selezionati
+const getAvailableSIDsQuery = (clients) => {
+  let query = `
+    SELECT DISTINCT sid, nomecliente
+    FROM "sap_reports_db"."reportparquet"
+  `;
+  
+  if (clients && clients.length > 0) {
+    const clientList = clients.map(c => `'${sanitize(c)}'`).join(',');
+    query += ` WHERE nomecliente IN (${clientList})`;
   }
   
-  const clientList = clients.map(c => `'${c.replace(/'/g, "''")}'`).join(',');
-  return `
-    SELECT DISTINCT sid 
-    FROM sap_reports_db.reportparquet 
-    WHERE nomecliente IN (${clientList})
-    ORDER BY sid
-  `;
+  query += ` ORDER BY sid`;
+  return query;
+};
+
+// Query per calcolare i trend (periodo precedente)
+const getPreviousPeriodData = (filters, type) => {
+  // Calcola il periodo precedente basandosi sul range di date
+  const start = new Date(filters.startDate);
+  const end = new Date(filters.endDate);
+  const diff = end - start;
+  
+  const prevEnd = new Date(start.getTime() - 1);
+  const prevStart = new Date(prevEnd.getTime() - diff);
+  
+  const prevFilters = {
+    ...filters,
+    startDate: prevStart.toISOString().split('T')[0],
+    endDate: prevEnd.toISOString().split('T')[0]
+  };
+  
+  const whereClause = buildBaseWhere(prevFilters);
+  
+  switch(type) {
+    case 'dumps':
+      return `
+        SELECT 
+          nomecliente,
+          datacontrollo,
+          COUNT(*) as total_dumps
+        FROM "sap_reports_db"."reportparquet"
+        CROSS JOIN UNNEST(abap_short_dumps) AS t(dump)
+        ${whereClause}
+        GROUP BY nomecliente, datacontrollo
+      `;
+    case 'backups':
+      return `
+        SELECT 
+          nomecliente,
+          datacontrollo,
+          COUNT(*) as failed_backups
+        FROM "sap_reports_db"."reportparquet"
+        CROSS JOIN UNNEST(situazione_backup) AS t(backup)
+        ${whereClause ? whereClause + ' AND' : 'WHERE'} (backup.status LIKE '%failed%' OR backup.status LIKE '%FAILED%')
+        GROUP BY nomecliente, datacontrollo
+      `;
+    case 'jobs':
+      return `
+        SELECT 
+          nomecliente,
+          datacontrollo,
+          COUNT(*) as cancelled_jobs
+        FROM "sap_reports_db"."reportparquet"
+        CROSS JOIN UNNEST(abap_batch_jobs) AS t(job)
+        ${whereClause ? whereClause + ' AND' : 'WHERE'} job.status = 'CANCELLED'
+        GROUP BY nomecliente, datacontrollo
+      `;
+    default:
+      return null;
+  }
 };
 
 module.exports = {
-  getKPIQuery,
+  getTotalDumpsQuery,
+  getFailedBackupsQuery,
+  getCancelledJobsQuery,
+  getServicesKOQuery,
   getDumpTypesQuery,
-  getDumpsByClientQuery,
   getIssuesByClientQuery,
-  getClientsListQuery,
-  getSIDsListQuery,
+  getAvailableClientsQuery,
+  getAvailableSIDsQuery,
+  getPreviousPeriodData
 };
