@@ -307,5 +307,7 @@ module.exports = {
   getIssuesByClientQuery,
   getAvailableClientsQuery,
   getAvailableSIDsQuery,
-  getPreviousPeriodData
+  getPreviousPeriodData,
+  getServicesTimelineQuery,      // ← AGGIUNGI QUESTA
+  getProblemsTimelineQuery        // ← AGGIUNGI QUESTA
 };

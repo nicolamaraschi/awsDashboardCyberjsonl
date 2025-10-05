@@ -38,6 +38,27 @@
   align-items: center;
 }
 
+.time-range-select {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.time-range-select:hover {
+  border-color: #007bff;
+}
+
+.time-range-select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
 .date-inputs {
   display: flex;
   align-items: center;
@@ -212,6 +233,11 @@
   position: relative;
 }
 
+.chart-container-timeline {
+  height: 350px;
+  position: relative;
+}
+
 /* Details Table */
 .details-table {
   background: white;
@@ -331,6 +357,10 @@
   }
 
   .chart-container {
+    height: 300px;
+  }
+
+  .chart-container-timeline {
     height: 300px;
   }
 

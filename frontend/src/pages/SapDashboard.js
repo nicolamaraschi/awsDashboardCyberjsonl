@@ -12,6 +12,7 @@ const SAPDashboard = () => {
   const [availableSIDs, setAvailableSIDs] = useState([]);
   const [selectedClients, setSelectedClients] = useState([]);
   const [selectedSIDs, setSelectedSIDs] = useState([]);
+  const [selectedTimeRange, setSelectedTimeRange] = useState('1m');
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
@@ -19,6 +20,62 @@ const SAPDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Funzione per calcolare le date in base al range selezionato
+  const calculateDateRange = (rangeType) => {
+    const today = new Date();
+    let startDate;
+
+    switch(rangeType) {
+      case '1d':
+        startDate = new Date(today);
+        startDate.setDate(today.getDate() - 1);
+        break;
+      case '1m':
+        startDate = new Date(today);
+        startDate.setMonth(today.getMonth() - 1);
+        break;
+      case '6m':
+        startDate = new Date(today);
+        startDate.setMonth(today.getMonth() - 6);
+        break;
+      case '1y':
+        startDate = new Date(today);
+        startDate.setFullYear(today.getFullYear() - 1);
+        break;
+      case 'all':
+        startDate = new Date('2000-01-01');
+        break;
+      case 'custom':
+        return null;
+      default:
+        startDate = new Date(today);
+        startDate.setMonth(today.getMonth() - 1);
+    }
+
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: today.toISOString().split('T')[0]
+    };
+  };
+
+  // Handler per il cambio del range predefinito
+  const handleTimeRangeChange = (e) => {
+    const rangeType = e.target.value;
+    setSelectedTimeRange(rangeType);
+    
+    if (rangeType !== 'custom') {
+      const newRange = calculateDateRange(rangeType);
+      if (newRange) {
+        setDateRange(newRange);
+      }
+    }
+  };
+
+  // Handler per la modifica manuale delle date
+  const handleDateChange = (field, value) => {
+    setDateRange(prev => ({ ...prev, [field]: value }));
+  };
 
   useEffect(() => {
     loadAvailableClients();
@@ -60,9 +117,7 @@ const SAPDashboard = () => {
 
   const loadAvailableSIDs = async (clients) => {
     try {
-      console.log('Frontend: Carico SID per clienti:', clients);
       const response = await axios.post(`${API_URL}/api/sap/sids`, { clients });
-      console.log('Frontend: SID ricevuti:', response.data);
       setAvailableSIDs(response.data);
     } catch (err) {
       console.error('Errore nel caricamento dei SID:', err);
@@ -242,13 +297,36 @@ const SAPDashboard = () => {
       <h1>Dashboard SAP - Report Giornalieri</h1>
       <div className="filters-container">
         <div className="filter-section">
-          <label>Date Range</label>
-          <div className="date-inputs">
-            <input type="date" value={dateRange.startDate} onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })} />
-            <span>→</span>
-            <input type="date" value={dateRange.endDate} onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })} />
-          </div>
+          <label>Periodo Temporale</label>
+          <select value={selectedTimeRange} onChange={handleTimeRangeChange} className="time-range-select">
+            <option value="1d">Ultimo Giorno</option>
+            <option value="1m">Ultimo Mese</option>
+            <option value="6m">Ultimi 6 Mesi</option>
+            <option value="1y">Ultimo Anno</option>
+            <option value="all">Tutti i Dati</option>
+            <option value="custom">Personalizzato</option>
+          </select>
         </div>
+        
+        {selectedTimeRange === 'custom' && (
+          <div className="filter-section">
+            <label>Date Personalizzate</label>
+            <div className="date-inputs">
+              <input 
+                type="date" 
+                value={dateRange.startDate} 
+                onChange={(e) => handleDateChange('startDate', e.target.value)} 
+              />
+              <span>→</span>
+              <input 
+                type="date" 
+                value={dateRange.endDate} 
+                onChange={(e) => handleDateChange('endDate', e.target.value)} 
+              />
+            </div>
+          </div>
+        )}
+        
         <div className="filter-section">
           <label>
             Clients ({selectedClients.length})
@@ -279,7 +357,7 @@ const SAPDashboard = () => {
               <p className="no-data">Seleziona un cliente</p>
             ) : (
               availableSIDs.map(sid => (
-                <label key={sid.sid} className="checkbox-label">
+                <label key={`${sid.sid}-${sid.nomecliente}`} className="checkbox-label">
                   <input type="checkbox" checked={selectedSIDs.includes(sid.sid)} onChange={() => handleSIDToggle(sid.sid)} />
                   {sid.sid} ({sid.nomecliente})
                 </label>

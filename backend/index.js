@@ -110,7 +110,9 @@ app.post('/api/sap/dashboard', async (req, res) => {
       issuesByClientData,
       prevDumpsData,
       prevBackupsData,
-      prevJobsData
+      prevJobsData,
+      servicesTimelineData,
+      problemsTimelineData
     ] = await Promise.all([
       runSAPQuery(getTotalDumpsQuery(filters)),
       runSAPQuery(getFailedBackupsQuery(filters)),
@@ -120,7 +122,9 @@ app.post('/api/sap/dashboard', async (req, res) => {
       runSAPQuery(getIssuesByClientQuery(filters)),
       runSAPQuery(getPreviousPeriodData(filters, 'dumps')),
       runSAPQuery(getPreviousPeriodData(filters, 'backups')),
-      runSAPQuery(getPreviousPeriodData(filters, 'jobs'))
+      runSAPQuery(getPreviousPeriodData(filters, 'jobs')),
+      runSAPQuery(getServicesTimelineQuery(filters)),
+      runSAPQuery(getProblemsTimelineQuery(filters))
     ]);
 
     // Calcola i totali
@@ -171,7 +175,9 @@ app.post('/api/sap/dashboard', async (req, res) => {
       },
       charts: {
         issuesByClient: issuesByClientData,
-        dumpTypes: dumpTypesData
+        dumpTypes: dumpTypesData,
+        servicesTimeline: servicesTimelineData,
+        problemsTimeline: problemsTimelineData
       },
       rawData: {
         dumps: dumpsData,
