@@ -7,6 +7,20 @@ import './SapDashboard.css';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement, Filler);
 
+// ============ FUNZIONE HELPER PER GENERARE TUTTE LE DATE NEL RANGE ============
+const generateDateRange = (startDate, endDate) => {
+  const dates = [];
+  const current = new Date(startDate);
+  const end = new Date(endDate);
+  
+  while (current <= end) {
+    dates.push(current.toISOString().split('T')[0]);
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return dates;
+};
+
 const SAPDashboard = () => {
   const [availableClients, setAvailableClients] = useState([]);
   const [availableSIDs, setAvailableSIDs] = useState([]);
@@ -84,6 +98,7 @@ const SAPDashboard = () => {
   useEffect(() => {
     if (selectedClients.length > 0) {
       loadAvailableSIDs(selectedClients);
+      // FIX: Quando cambi clienti, resetta i SID selezionati
       setSelectedSIDs([]);
     } else {
       setAvailableSIDs([]);
@@ -135,8 +150,12 @@ const SAPDashboard = () => {
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
         clients: selectedClients,
-        sids: selectedSIDs.length > 0 ? selectedSIDs : undefined
+        // FIX CRITICO: Passa sempre l'array di SID, anche se vuoto
+        sids: selectedSIDs
       };
+      
+      console.log('📊 Invio filtri al backend:', filters);
+      
       const response = await axios.post(`${API_URL}/api/sap/dashboard`, filters);
       setDashboardData(response.data);
     } catch (err) {
@@ -178,7 +197,40 @@ const SAPDashboard = () => {
   const getIssuesByClientChartData = () => {
     if (!dashboardData?.charts?.issuesByClient) return null;
     const data = dashboardData.charts.issuesByClient;
-    const labels = data.map(item => item.nomecliente);
+    
+    // Aggrega per cliente (somma di tutti i SID)
+    const clientMap = {};
+    data.forEach(item => {
+      const client = item.nomecliente;
+      if (!clientMap[client]) {
+        clientMap[client] = { dumps: 0, failed_backups: 0, cancelled_jobs: 0 };
+      }
+      clientMap[client].dumps += parseInt(item.dumps || 0);
+      clientMap[client].failed_backups += parseInt(item.failed_backups || 0);
+      clientMap[client].cancelled_jobs += parseInt(item.cancelled_jobs || 0);
+    });
+    
+    const labels = Object.keys(clientMap);
+    const dumps = labels.map(client => clientMap[client].dumps);
+    const backups = labels.map(client => clientMap[client].failed_backups);
+    const jobs = labels.map(client => clientMap[client].cancelled_jobs);
+
+    return {
+      labels,
+      datasets: [
+        { label: 'Dumps', data: dumps, backgroundColor: 'rgba(255, 99, 132, 0.7)' },
+        { label: 'Backup Falliti', data: backups, backgroundColor: 'rgba(255, 159, 64, 0.7)' },
+        { label: 'Job Cancellati', data: jobs, backgroundColor: 'rgba(255, 205, 86, 0.7)' }
+      ]
+    };
+  };
+
+  const getIssuesBySIDChartData = () => {
+    if (!dashboardData?.charts?.issuesByClient) return null;
+    const data = dashboardData.charts.issuesByClient;
+    
+    // Crea label "Cliente - SID"
+    const labels = data.map(item => `${item.nomecliente} - ${item.sid}`);
     const dumps = data.map(item => parseInt(item.dumps || 0));
     const backups = data.map(item => parseInt(item.failed_backups || 0));
     const jobs = data.map(item => parseInt(item.cancelled_jobs || 0));
@@ -196,69 +248,180 @@ const SAPDashboard = () => {
   const getDumpTypesChartData = () => {
     if (!dashboardData?.charts?.dumpTypes) return null;
     const data = dashboardData.charts.dumpTypes;
+    
+    // Funzione per formattare i nomi tecnici SAP in nomi leggibili
+    const formatDumpName = (techName) => {
+      if (!techName) return 'Unknown';
+      
+      // Mappa dei nomi tecnici più comuni
+      const nameMap = {
+        'CONVERT_TSTMP_INCONSISTENT_TAB': 'Timestamp Conversion Error',
+        'CALL_FUNCTION_REMOTE_ERROR': 'Remote Function Call Error',
+        'UNCAUGHT_EXCEPTION': 'Uncaught Exception',
+        'ITAB_DUPLICATE_KEY': 'Duplicate Key in Table',
+        'DBSQL_NO_MORE_CONNECTION': 'Database Connection Limit',
+        'LOAD_PROGRAM_TABLE_MISMATCH': 'Program Table Mismatch',
+        'RAISE_EXCEPTION': 'Raised Exception',
+        'DBSQL_DUPLICATE_KEY_ERROR': 'Database Duplicate Key',
+        'RFC_NO_AUTHORITY': 'RFC No Authorization',
+        'TIME_OUT': 'Timeout',
+        'MESSAGE_TYPE_X': 'Error Message Type X',
+        'DYNPRO_MSG_IN_HELP': 'Dynpro Message in Help',
+        'LIST_TOO_MANY_LPROS': 'Too Many List Processors',
+        'GETWA_NOT_ASSIGNED': 'Work Area Not Assigned',
+        'TSV_TNEW_PAGE_ALLOC_FAILED': 'Page Allocation Failed',
+        'DBIF_DSQL2_OBJ_UNKNOWN': 'Database Object Unknown',
+        'DATASET_NOT_OPEN': 'Dataset Not Open',
+        'RAISE_SHORTDUMP': 'Short Dump Raised',
+        'CALL_FUNCTION_SEND_ERROR': 'Function Send Error',
+        'ITS_ERRMSG_EXCEPTION': 'ITS Error Message Exception',
+        'DBIF_RSQL_SQL_ERROR': 'Database SQL Error',
+        'SQL_CAUGHT_RABAX': 'SQL Exception Caught',
+        'COMPUTE_INT_ZERODIVIDE': 'Division by Zero',
+        'SYSTEM_FAILURE': 'System Failure',
+        'STORAGE_PARAMETERS_WRONG_SET': 'Storage Parameters Wrong',
+        'OBJECTS_OBJREF_NOT_ASSIGNED': 'Object Reference Not Assigned',
+      };
+      
+      // Se esiste una traduzione, usala
+      if (nameMap[techName]) {
+        return nameMap[techName];
+      }
+      
+      // Altrimenti formatta automaticamente:
+      // ITAB_DUPLICATE_KEY -> Itab Duplicate Key
+      return techName
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+    };
+    
     const typeMap = {};
     data.forEach(item => {
-      const type = item.dump_type || 'Unknown';
-      typeMap[type] = (typeMap[type] || 0) + parseInt(item.count || 0);
+      const rawType = item.dump_type || 'Unknown';
+      const displayName = formatDumpName(rawType);
+      typeMap[displayName] = (typeMap[displayName] || 0) + parseInt(item.count || 0);
     });
-    const labels = Object.keys(typeMap);
-    const counts = Object.values(typeMap);
+    
+    // Ordina per occorrenze e prendi solo i top 15
+    const sortedEntries = Object.entries(typeMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 15);
+    
+    // Calcola "Altri" se ci sono più di 15 tipi
+    const totalEntries = Object.entries(typeMap);
+    if (totalEntries.length > 15) {
+      const othersCount = totalEntries
+        .slice(15)
+        .reduce((sum, entry) => sum + entry[1], 0);
+      
+      if (othersCount > 0) {
+        sortedEntries.push(['Others', othersCount]);
+      }
+    }
+    
+    const labels = sortedEntries.map(entry => entry[0]);
+    const counts = sortedEntries.map(entry => entry[1]);
+    
     const backgroundColors = [
-      'rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)', 'rgba(255, 206, 86, 0.7)',
-      'rgba(75, 192, 192, 0.7)', 'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)',
-      'rgba(199, 199, 199, 0.7)', 'rgba(83, 102, 255, 0.7)', 'rgba(255, 102, 178, 0.7)', 'rgba(102, 255, 178, 0.7)'
+      'rgba(255, 99, 132, 0.8)', 'rgba(54, 162, 235, 0.8)', 'rgba(255, 206, 86, 0.8)',
+      'rgba(75, 192, 192, 0.8)', 'rgba(153, 102, 255, 0.8)', 'rgba(255, 159, 64, 0.8)',
+      'rgba(199, 199, 199, 0.8)', 'rgba(83, 102, 255, 0.8)', 'rgba(255, 102, 178, 0.8)', 
+      'rgba(102, 255, 178, 0.8)', 'rgba(255, 193, 7, 0.8)', 'rgba(156, 39, 176, 0.8)',
+      'rgba(33, 150, 243, 0.8)', 'rgba(76, 175, 80, 0.8)', 'rgba(244, 67, 54, 0.8)',
+      'rgba(158, 158, 158, 0.8)' // Grigio per "Others"
     ];
+    
     return {
       labels,
-      datasets: [{ data: counts, backgroundColor: backgroundColors.slice(0, labels.length) }]
+      datasets: [{ 
+        data: counts, 
+        backgroundColor: backgroundColors.slice(0, labels.length),
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.8)'
+      }]
     };
   };
 
+  // ============ FIX CRITICO: Grafici temporali con TUTTE le date nel range ============
   const getServicesTimelineChartData = () => {
     if (!dashboardData?.charts?.servicesTimeline) return null;
+    
+    // Genera TUTTE le date nel range selezionato
+    const allDates = generateDateRange(dateRange.startDate, dateRange.endDate);
+    
+    // Crea una mappa con i dati ricevuti
     const data = dashboardData.charts.servicesTimeline;
-    const dateMap = {};
+    const dataMap = {};
+    
     data.forEach(item => {
       const date = item.datacontrollo;
-      if (!dateMap[date]) {
-        dateMap[date] = { dump_ko: 0, job_ko: 0, processi_ko: 0, db_ko: 0, log_ko: 0 };
+      if (!dataMap[date]) {
+        dataMap[date] = { dump_ko: 0, job_ko: 0, processi_ko: 0, db_ko: 0, log_ko: 0 };
       }
-      dateMap[date].dump_ko += parseInt(item.dump_ko || 0);
-      dateMap[date].job_ko += parseInt(item.job_ko || 0);
-      dateMap[date].processi_ko += parseInt(item.processi_ko || 0);
-      dateMap[date].db_ko += parseInt(item.db_ko || 0);
-      dateMap[date].log_ko += parseInt(item.log_ko || 0);
+      dataMap[date].dump_ko += parseInt(item.dump_ko || 0);
+      dataMap[date].job_ko += parseInt(item.job_ko || 0);
+      dataMap[date].processi_ko += parseInt(item.processi_ko || 0);
+      dataMap[date].db_ko += parseInt(item.db_ko || 0);
+      dataMap[date].log_ko += parseInt(item.log_ko || 0);
     });
-    const sortedDates = Object.keys(dateMap).sort();
-    const labels = sortedDates.map(date => {
+    
+    // Crea i labels e i dati per TUTTE le date
+    const labels = allDates.map(date => {
       const d = new Date(date);
       return `${d.getDate()}/${d.getMonth() + 1}`;
     });
+    
+    const dump_ko_data = allDates.map(date => dataMap[date]?.dump_ko || 0);
+    const job_ko_data = allDates.map(date => dataMap[date]?.job_ko || 0);
+    const db_ko_data = allDates.map(date => dataMap[date]?.db_ko || 0);
+    const log_ko_data = allDates.map(date => dataMap[date]?.log_ko || 0);
+    
     return {
       labels,
       datasets: [
-        { label: 'Dump KO', data: sortedDates.map(date => dateMap[date].dump_ko), borderColor: 'rgba(255, 99, 132, 1)', backgroundColor: 'rgba(255, 99, 132, 0.1)', tension: 0.3, fill: true },
-        { label: 'Job in Errore', data: sortedDates.map(date => dateMap[date].job_ko), borderColor: 'rgba(255, 159, 64, 1)', backgroundColor: 'rgba(255, 159, 64, 0.1)', tension: 0.3, fill: true },
-        { label: 'Database KO', data: sortedDates.map(date => dateMap[date].db_ko), borderColor: 'rgba(54, 162, 235, 1)', backgroundColor: 'rgba(54, 162, 235, 0.1)', tension: 0.3, fill: true },
-        { label: 'Log Space KO', data: sortedDates.map(date => dateMap[date].log_ko), borderColor: 'rgba(153, 102, 255, 1)', backgroundColor: 'rgba(153, 102, 255, 0.1)', tension: 0.3, fill: true }
+        { label: 'Dump KO', data: dump_ko_data, borderColor: 'rgba(255, 99, 132, 1)', backgroundColor: 'rgba(255, 99, 132, 0.1)', tension: 0.3, fill: true },
+        { label: 'Job in Errore', data: job_ko_data, borderColor: 'rgba(255, 159, 64, 1)', backgroundColor: 'rgba(255, 159, 64, 0.1)', tension: 0.3, fill: true },
+        { label: 'Database KO', data: db_ko_data, borderColor: 'rgba(54, 162, 235, 1)', backgroundColor: 'rgba(54, 162, 235, 0.1)', tension: 0.3, fill: true },
+        { label: 'Log Space KO', data: log_ko_data, borderColor: 'rgba(153, 102, 255, 1)', backgroundColor: 'rgba(153, 102, 255, 0.1)', tension: 0.3, fill: true }
       ]
     };
   };
 
   const getProblemsTimelineChartData = () => {
     if (!dashboardData?.charts?.problemsTimeline) return null;
+    
+    // Genera TUTTE le date nel range selezionato
+    const allDates = generateDateRange(dateRange.startDate, dateRange.endDate);
+    
+    // Crea una mappa con i dati ricevuti
     const data = dashboardData.charts.problemsTimeline;
-    const sortedData = [...data].sort((a, b) => a.datacontrollo.localeCompare(b.datacontrollo));
-    const labels = sortedData.map(item => {
-      const d = new Date(item.datacontrollo);
+    const dataMap = {};
+    
+    data.forEach(item => {
+      dataMap[item.datacontrollo] = {
+        dumps: parseInt(item.dumps || 0),
+        failed_backups: parseInt(item.failed_backups || 0),
+        cancelled_jobs: parseInt(item.cancelled_jobs || 0)
+      };
+    });
+    
+    // Crea i labels e i dati per TUTTE le date
+    const labels = allDates.map(date => {
+      const d = new Date(date);
       return `${d.getDate()}/${d.getMonth() + 1}`;
     });
+    
+    const dumps_data = allDates.map(date => dataMap[date]?.dumps || 0);
+    const backups_data = allDates.map(date => dataMap[date]?.failed_backups || 0);
+    const jobs_data = allDates.map(date => dataMap[date]?.cancelled_jobs || 0);
+    
     return {
       labels,
       datasets: [
-        { label: 'Dumps', data: sortedData.map(item => parseInt(item.dumps || 0)), borderColor: 'rgba(255, 99, 132, 1)', backgroundColor: 'rgba(255, 99, 132, 0.1)', tension: 0.3, fill: true },
-        { label: 'Backup Falliti', data: sortedData.map(item => parseInt(item.failed_backups || 0)), borderColor: 'rgba(255, 159, 64, 1)', backgroundColor: 'rgba(255, 159, 64, 0.1)', tension: 0.3, fill: true },
-        { label: 'Job Cancellati', data: sortedData.map(item => parseInt(item.cancelled_jobs || 0)), borderColor: 'rgba(255, 205, 86, 1)', backgroundColor: 'rgba(255, 205, 86, 0.1)', tension: 0.3, fill: true }
+        { label: 'Dumps', data: dumps_data, borderColor: 'rgba(255, 99, 132, 1)', backgroundColor: 'rgba(255, 99, 132, 0.1)', tension: 0.3, fill: true },
+        { label: 'Backup Falliti', data: backups_data, borderColor: 'rgba(255, 159, 64, 1)', backgroundColor: 'rgba(255, 159, 64, 0.1)', tension: 0.3, fill: true },
+        { label: 'Job Cancellati', data: jobs_data, borderColor: 'rgba(255, 205, 86, 1)', backgroundColor: 'rgba(255, 205, 86, 0.1)', tension: 0.3, fill: true }
       ]
     };
   };
@@ -295,6 +458,15 @@ const SAPDashboard = () => {
   return (
     <div className="sap-dashboard">
       <h1>Dashboard SAP - Report Giornalieri</h1>
+      
+      {/* Debug Info */}
+      <div style={{ background: '#f0f0f0', padding: '10px', marginBottom: '20px', borderRadius: '5px', fontSize: '12px' }}>
+        <strong>🔍 Debug Filtri:</strong><br/>
+        Range: {dateRange.startDate} → {dateRange.endDate}<br/>
+        Clienti: {selectedClients.length > 0 ? selectedClients.join(', ') : 'Nessuno'}<br/>
+        SID: {selectedSIDs.length > 0 ? selectedSIDs.join(', ') : 'Tutti (nessun filtro)'}
+      </div>
+      
       <div className="filters-container">
         <div className="filter-section">
           <label>Periodo Temporale</label>
@@ -366,8 +538,10 @@ const SAPDashboard = () => {
           </div>
         </div>
       </div>
+      
       {loading && <div className="loader">Caricamento dati...</div>}
       {error && <div className="error-message">{error}</div>}
+      
       {dashboardData && (
         <>
           <div className="kpi-grid">
@@ -379,7 +553,7 @@ const SAPDashboard = () => {
           <div className="charts-grid">
             <div className="chart-card full-width">
               <h2>Andamento Servizi nel Tempo</h2>
-              <p className="chart-subtitle">Evoluzione dello stato dei servizi nel periodo selezionato</p>
+              <p className="chart-subtitle">Evoluzione dello stato dei servizi nel periodo selezionato ({dateRange.startDate} → {dateRange.endDate})</p>
               {getServicesTimelineChartData() ? (
                 <div className="chart-container-timeline">
                   <Line data={getServicesTimelineChartData()} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, title: { display: true, text: 'Numero di servizi in KO' } }, x: { title: { display: true, text: 'Data' } } } }} />
@@ -390,7 +564,7 @@ const SAPDashboard = () => {
             </div>
             <div className="chart-card full-width">
               <h2>Andamento Problemi nel Tempo</h2>
-              <p className="chart-subtitle">Trend di dumps, backup falliti e job cancellati</p>
+              <p className="chart-subtitle">Trend di dumps, backup falliti e job cancellati ({dateRange.startDate} → {dateRange.endDate})</p>
               {getProblemsTimelineChartData() ? (
                 <div className="chart-container-timeline">
                   <Line data={getProblemsTimelineChartData()} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, title: { display: true, text: 'Numero di occorrenze' } }, x: { title: { display: true, text: 'Data' } } }, interaction: { mode: 'index', intersect: false } }} />
@@ -400,8 +574,8 @@ const SAPDashboard = () => {
               )}
             </div>
             <div className="chart-card">
-              <h2>Issues by Client & Type</h2>
-              <p className="chart-subtitle">Dump, backup falliti e job cancellati per cliente</p>
+              <h2>Issues by Client (Aggregato)</h2>
+              <p className="chart-subtitle">Totale problemi per cliente (somma tutti i SID)</p>
               {getIssuesByClientChartData() ? (
                 <div className="chart-container">
                   <Bar data={getIssuesByClientChartData()} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }} />
@@ -411,11 +585,85 @@ const SAPDashboard = () => {
               )}
             </div>
             <div className="chart-card">
+              <h2>Issues by SID (Dettagliato)</h2>
+              <p className="chart-subtitle">Problemi divisi per ogni SID selezionato</p>
+              {getIssuesBySIDChartData() ? (
+                <div className="chart-container" style={{ height: `${Math.max(400, dashboardData.charts.issuesByClient.length * 50)}px` }}>
+                  <Bar 
+                    data={getIssuesBySIDChartData()} 
+                    options={{ 
+                      responsive: true, 
+                      maintainAspectRatio: false, 
+                      indexAxis: 'y',
+                      plugins: { 
+                        legend: { position: 'top' },
+                        tooltip: {
+                          callbacks: {
+                            title: function(context) {
+                              return context[0].label;
+                            }
+                          }
+                        }
+                      }, 
+                      scales: { 
+                        x: { beginAtZero: true, title: { display: true, text: 'Numero di Issues' } },
+                        y: { title: { display: true, text: 'Cliente - SID' } }
+                      } 
+                    }} 
+                  />
+                </div>
+              ) : (
+                <div className="no-data">Nessun dato disponibile</div>
+              )}
+            </div>
+            <div className="chart-card">
               <h2>Dump Type Distribution</h2>
-              <p className="chart-subtitle">Distribuzione dei tipi di dump nel periodo selezionato</p>
+              <p className="chart-subtitle">Tipi di dump più frequenti (Top 15)</p>
               {getDumpTypesChartData() ? (
                 <div className="chart-container">
-                  <Doughnut data={getDumpTypesChartData()} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }} />
+                  <Doughnut 
+                    data={getDumpTypesChartData()} 
+                    options={{ 
+                      responsive: true, 
+                      maintainAspectRatio: false, 
+                      plugins: { 
+                        legend: { 
+                          position: 'right',
+                          labels: {
+                            boxWidth: 15,
+                            padding: 8,
+                            font: {
+                              size: 11
+                            },
+                            // Limita le label troppo lunghe
+                            generateLabels: (chart) => {
+                              const data = chart.data;
+                              if (data.labels.length && data.datasets.length) {
+                                return data.labels.slice(0, 15).map((label, i) => ({
+                                  text: label.length > 25 ? label.substring(0, 22) + '...' : label,
+                                  fillStyle: data.datasets[0].backgroundColor[i],
+                                  hidden: false,
+                                  index: i
+                                }));
+                              }
+                              return [];
+                            }
+                          }
+                        },
+                        tooltip: {
+                          callbacks: {
+                            label: function(context) {
+                              const label = context.label || '';
+                              const value = context.parsed || 0;
+                              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                              const percentage = ((value / total) * 100).toFixed(1);
+                              return `${label}: ${value} (${percentage}%)`;
+                            }
+                          }
+                        }
+                      } 
+                    }} 
+                  />
                 </div>
               ) : (
                 <div className="no-data">Nessun dato disponibile</div>
@@ -424,11 +672,12 @@ const SAPDashboard = () => {
           </div>
           {dashboardData.charts.issuesByClient && dashboardData.charts.issuesByClient.length > 0 && (
             <div className="details-table">
-              <h2>Riepilogo Dettagliato per Cliente</h2>
+              <h2>Riepilogo Dettagliato per Cliente e SID</h2>
               <table>
                 <thead>
                   <tr>
                     <th>Cliente</th>
+                    <th>SID</th>
                     <th>Dumps</th>
                     <th>Backup Falliti</th>
                     <th>Job Cancellati</th>
@@ -438,9 +687,17 @@ const SAPDashboard = () => {
                 <tbody>
                   {dashboardData.charts.issuesByClient.map((item, index) => {
                     const total = parseInt(item.dumps || 0) + parseInt(item.failed_backups || 0) + parseInt(item.cancelled_jobs || 0);
+                    
+                    // Determina se è la prima riga del cliente (per raggruppamento visivo)
+                    const prevItem = index > 0 ? dashboardData.charts.issuesByClient[index - 1] : null;
+                    const isFirstOfClient = !prevItem || prevItem.nomecliente !== item.nomecliente;
+                    
                     return (
-                      <tr key={index}>
-                        <td><strong>{item.nomecliente}</strong></td>
+                      <tr key={`${item.nomecliente}-${item.sid}`} className={isFirstOfClient ? 'first-of-client' : ''}>
+                        <td>
+                          {isFirstOfClient && <strong>{item.nomecliente}</strong>}
+                        </td>
+                        <td><em>{item.sid}</em></td>
                         <td className={item.dumps > 0 ? 'warning' : ''}>{item.dumps || 0}</td>
                         <td className={item.failed_backups > 0 ? 'error' : ''}>{item.failed_backups || 0}</td>
                         <td className={item.cancelled_jobs > 0 ? 'warning' : ''}>{item.cancelled_jobs || 0}</td>

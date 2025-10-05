@@ -1,5 +1,5 @@
 // ====================================================================
-// SAP QUERIES - Query per Dashboard SAP
+// SAP QUERIES - Query per Dashboard SAP (VERSIONE CORRETTA - CAMPI MAIUSCOLI)
 // ====================================================================
 
 const sanitize = (value) => {
@@ -24,14 +24,32 @@ const buildBaseWhere = (filters) => {
   if (filters.sids && filters.sids.length > 0) {
     const sidList = filters.sids.map(s => `'${sanitize(s)}'`).join(',');
     conditions.push(`sid IN (${sidList})`);
+  } else if (filters.sids && filters.sids.length === 0 && filters.clients && filters.clients.length > 0) {
+    conditions.push(`sid = 'NESSUN_SID_SELEZIONATO'`);
   }
   
   return conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 };
 
-// Query 1: Total Dumps con trend
+// Query 1: Total Dumps
 const getTotalDumpsQuery = (filters) => {
-  const whereClause = buildBaseWhere(filters);
+  const conditions = [];
+  
+  if (filters.startDate && filters.endDate) {
+    conditions.push(`datacontrollo BETWEEN '${sanitize(filters.startDate)}' AND '${sanitize(filters.endDate)}'`);
+  }
+  if (filters.clients && filters.clients.length > 0) {
+    const clientList = filters.clients.map(c => `'${sanitize(c)}'`).join(',');
+    conditions.push(`nomecliente IN (${clientList})`);
+  }
+  if (filters.sids && filters.sids.length > 0) {
+    const sidList = filters.sids.map(s => `'${sanitize(s)}'`).join(',');
+    conditions.push(`sid IN (${sidList})`);
+  } else if (filters.sids && filters.sids.length === 0 && filters.clients && filters.clients.length > 0) {
+    conditions.push(`sid = 'NESSUN_SID_SELEZIONATO'`);
+  }
+  
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   
   return `
     SELECT 
@@ -45,9 +63,26 @@ const getTotalDumpsQuery = (filters) => {
   `;
 };
 
-// Query 2: Failed Backups
+// Query 2: Failed Backups (CAMPI MAIUSCOLI: STATUS)
 const getFailedBackupsQuery = (filters) => {
-  const whereClause = buildBaseWhere(filters);
+  const conditions = [];
+  
+  if (filters.startDate && filters.endDate) {
+    conditions.push(`datacontrollo BETWEEN '${sanitize(filters.startDate)}' AND '${sanitize(filters.endDate)}'`);
+  }
+  if (filters.clients && filters.clients.length > 0) {
+    const clientList = filters.clients.map(c => `'${sanitize(c)}'`).join(',');
+    conditions.push(`nomecliente IN (${clientList})`);
+  }
+  if (filters.sids && filters.sids.length > 0) {
+    const sidList = filters.sids.map(s => `'${sanitize(s)}'`).join(',');
+    conditions.push(`sid IN (${sidList})`);
+  } else if (filters.sids && filters.sids.length === 0 && filters.clients && filters.clients.length > 0) {
+    conditions.push(`sid = 'NESSUN_SID_SELEZIONATO'`);
+  }
+  
+  conditions.push(`(backup.STATUS LIKE '%failed%' OR backup.STATUS LIKE '%FAILED%')`);
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   
   return `
     SELECT 
@@ -56,14 +91,31 @@ const getFailedBackupsQuery = (filters) => {
       datacontrollo
     FROM "sap_reports_db"."reportparquet"
     CROSS JOIN UNNEST(situazione_backup) AS t(backup)
-    ${whereClause ? whereClause + ' AND' : 'WHERE'} (backup.status LIKE '%failed%' OR backup.status LIKE '%FAILED%')
+    ${whereClause}
     GROUP BY nomecliente, datacontrollo
   `;
 };
 
-// Query 3: Cancelled Jobs
+// Query 3: Cancelled Jobs (CAMPI MAIUSCOLI: STATUS)
 const getCancelledJobsQuery = (filters) => {
-  const whereClause = buildBaseWhere(filters);
+  const conditions = [];
+  
+  if (filters.startDate && filters.endDate) {
+    conditions.push(`datacontrollo BETWEEN '${sanitize(filters.startDate)}' AND '${sanitize(filters.endDate)}'`);
+  }
+  if (filters.clients && filters.clients.length > 0) {
+    const clientList = filters.clients.map(c => `'${sanitize(c)}'`).join(',');
+    conditions.push(`nomecliente IN (${clientList})`);
+  }
+  if (filters.sids && filters.sids.length > 0) {
+    const sidList = filters.sids.map(s => `'${sanitize(s)}'`).join(',');
+    conditions.push(`sid IN (${sidList})`);
+  } else if (filters.sids && filters.sids.length === 0 && filters.clients && filters.clients.length > 0) {
+    conditions.push(`sid = 'NESSUN_SID_SELEZIONATO'`);
+  }
+  
+  conditions.push(`job.STATUS = 'CANCELLED'`);
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   
   return `
     SELECT 
@@ -72,12 +124,12 @@ const getCancelledJobsQuery = (filters) => {
       datacontrollo
     FROM "sap_reports_db"."reportparquet"
     CROSS JOIN UNNEST(abap_batch_jobs) AS t(job)
-    ${whereClause ? whereClause + ' AND' : 'WHERE'} job.status = 'CANCELLED'
+    ${whereClause}
     GROUP BY nomecliente, datacontrollo
   `;
 };
 
-// Query 4: Servizi in KO per cliente
+// Query 4: Servizi in KO (CAMPI MAIUSCOLI nello struct stato_servizi)
 const getServicesKOQuery = (filters) => {
   const whereClause = buildBaseWhere(filters);
   
@@ -85,7 +137,7 @@ const getServicesKOQuery = (filters) => {
     SELECT 
       nomecliente,
       datacontrollo,
-      stato_servizi.dump as dump_status,
+      stato_servizi.Dump as dump_status,
       stato_servizi.job_in_errore as job_error_status,
       stato_servizi.processi_attivi as active_processes_status,
       stato_servizi.spazio_database as db_space_status,
@@ -95,57 +147,95 @@ const getServicesKOQuery = (filters) => {
   `;
 };
 
-// Query 5: Dump Types Distribution
+// Query 5: Dump Types Distribution (CAMPI MAIUSCOLI: SHORT_DUMP_TYPE)
 const getDumpTypesQuery = (filters) => {
-  const whereClause = buildBaseWhere(filters);
+  const conditions = [];
+  
+  if (filters.startDate && filters.endDate) {
+    conditions.push(`datacontrollo BETWEEN '${sanitize(filters.startDate)}' AND '${sanitize(filters.endDate)}'`);
+  }
+  if (filters.clients && filters.clients.length > 0) {
+    const clientList = filters.clients.map(c => `'${sanitize(c)}'`).join(',');
+    conditions.push(`nomecliente IN (${clientList})`);
+  }
+  if (filters.sids && filters.sids.length > 0) {
+    const sidList = filters.sids.map(s => `'${sanitize(s)}'`).join(',');
+    conditions.push(`sid IN (${sidList})`);
+  } else if (filters.sids && filters.sids.length === 0 && filters.clients && filters.clients.length > 0) {
+    conditions.push(`sid = 'NESSUN_SID_SELEZIONATO'`);
+  }
+  
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   
   return `
     SELECT 
-      dump.short_dump_type as dump_type,
+      dump.SHORT_DUMP_TYPE as dump_type,
       COUNT(*) as count,
       nomecliente
     FROM "sap_reports_db"."reportparquet"
     CROSS JOIN UNNEST(abap_short_dumps) AS t(dump)
     ${whereClause}
-    GROUP BY dump.short_dump_type, nomecliente
+    GROUP BY dump.SHORT_DUMP_TYPE, nomecliente
     ORDER BY count DESC
   `;
 };
 
-// Query 6: Issues by Client & Type (aggregato)
+// Query 6: Issues by Client & SID
 const getIssuesByClientQuery = (filters) => {
-  const whereClause = buildBaseWhere(filters);
+  const conditions = [];
+  
+  if (filters.startDate && filters.endDate) {
+    conditions.push(`datacontrollo BETWEEN '${sanitize(filters.startDate)}' AND '${sanitize(filters.endDate)}'`);
+  }
+  if (filters.clients && filters.clients.length > 0) {
+    const clientList = filters.clients.map(c => `'${sanitize(c)}'`).join(',');
+    conditions.push(`nomecliente IN (${clientList})`);
+  }
+  if (filters.sids && filters.sids.length > 0) {
+    const sidList = filters.sids.map(s => `'${sanitize(s)}'`).join(',');
+    conditions.push(`sid IN (${sidList})`);
+  } else if (filters.sids && filters.sids.length === 0 && filters.clients && filters.clients.length > 0) {
+    conditions.push(`sid = 'NESSUN_SID_SELEZIONATO'`);
+  }
+  
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const backupConditions = [...conditions, `(backup.STATUS LIKE '%failed%' OR backup.STATUS LIKE '%FAILED%')`];
+  const backupWhereClause = backupConditions.length > 0 ? `WHERE ${backupConditions.join(' AND ')}` : '';
+  const jobConditions = [...conditions, `job.STATUS = 'CANCELLED'`];
+  const jobWhereClause = jobConditions.length > 0 ? `WHERE ${jobConditions.join(' AND ')}` : '';
   
   return `
     WITH dumps AS (
-      SELECT nomecliente, COUNT(*) as dump_count
+      SELECT nomecliente, sid, COUNT(*) as dump_count
       FROM "sap_reports_db"."reportparquet"
       CROSS JOIN UNNEST(abap_short_dumps) AS t(dump)
       ${whereClause}
-      GROUP BY nomecliente
+      GROUP BY nomecliente, sid
     ),
     failed_backups AS (
-      SELECT nomecliente, COUNT(*) as backup_count
+      SELECT nomecliente, sid, COUNT(*) as backup_count
       FROM "sap_reports_db"."reportparquet"
       CROSS JOIN UNNEST(situazione_backup) AS t(backup)
-      ${whereClause ? whereClause + ' AND' : 'WHERE'} (backup.status LIKE '%failed%' OR backup.status LIKE '%FAILED%')
-      GROUP BY nomecliente
+      ${backupWhereClause}
+      GROUP BY nomecliente, sid
     ),
     cancelled_jobs AS (
-      SELECT nomecliente, COUNT(*) as job_count
+      SELECT nomecliente, sid, COUNT(*) as job_count
       FROM "sap_reports_db"."reportparquet"
       CROSS JOIN UNNEST(abap_batch_jobs) AS t(job)
-      ${whereClause ? whereClause + ' AND' : 'WHERE'} job.status = 'CANCELLED'
-      GROUP BY nomecliente
+      ${jobWhereClause}
+      GROUP BY nomecliente, sid
     )
     SELECT 
       COALESCE(d.nomecliente, fb.nomecliente, cj.nomecliente) as nomecliente,
+      COALESCE(d.sid, fb.sid, cj.sid) as sid,
       COALESCE(d.dump_count, 0) as dumps,
       COALESCE(fb.backup_count, 0) as failed_backups,
       COALESCE(cj.job_count, 0) as cancelled_jobs
     FROM dumps d
-    FULL OUTER JOIN failed_backups fb ON d.nomecliente = fb.nomecliente
-    FULL OUTER JOIN cancelled_jobs cj ON COALESCE(d.nomecliente, fb.nomecliente) = cj.nomecliente
+    FULL OUTER JOIN failed_backups fb ON d.nomecliente = fb.nomecliente AND d.sid = fb.sid
+    FULL OUTER JOIN cancelled_jobs cj ON COALESCE(d.nomecliente, fb.nomecliente) = cj.nomecliente AND COALESCE(d.sid, fb.sid) = cj.sid
+    ORDER BY nomecliente, sid
   `;
 };
 
@@ -158,7 +248,7 @@ const getAvailableClientsQuery = () => {
   `;
 };
 
-// Query 8: Lista SID disponibili per i clienti selezionati
+// Query 8: Lista SID disponibili
 const getAvailableSIDsQuery = (clients) => {
   let query = `
     SELECT DISTINCT sid, nomecliente
@@ -174,7 +264,7 @@ const getAvailableSIDsQuery = (clients) => {
   return query;
 };
 
-// Query 9: Andamento servizi nel tempo (per grafico lineare)
+// Query 9: Andamento servizi nel tempo
 const getServicesTimelineQuery = (filters) => {
   const whereClause = buildBaseWhere(filters);
   
@@ -182,14 +272,14 @@ const getServicesTimelineQuery = (filters) => {
     SELECT 
       datacontrollo,
       nomecliente,
-      SUM(CASE WHEN stato_servizi.dump = 'ko' THEN 1 ELSE 0 END) as dump_ko,
+      SUM(CASE WHEN stato_servizi.Dump = 'ko' THEN 1 ELSE 0 END) as dump_ko,
       SUM(CASE WHEN stato_servizi.job_in_errore = 'ko' THEN 1 ELSE 0 END) as job_ko,
       SUM(CASE WHEN stato_servizi.processi_attivi = 'ko' THEN 1 ELSE 0 END) as processi_ko,
       SUM(CASE WHEN stato_servizi.spazio_database = 'ko' THEN 1 ELSE 0 END) as db_ko,
       SUM(CASE WHEN stato_servizi.spazio_log = 'ko' THEN 1 ELSE 0 END) as log_ko,
       SUM(CASE WHEN stato_servizi.scadenza_certificati = 'ko' THEN 1 ELSE 0 END) as cert_ko,
       SUM(CASE WHEN stato_servizi.update_in_errore = 'ko' THEN 1 ELSE 0 END) as update_ko,
-      SUM(CASE WHEN stato_servizi.spool = 'ko' THEN 1 ELSE 0 END) as spool_ko
+      SUM(CASE WHEN stato_servizi.Spool = 'ko' THEN 1 ELSE 0 END) as spool_ko
     FROM "sap_reports_db"."reportparquet"
     ${whereClause}
     GROUP BY datacontrollo, nomecliente
@@ -197,9 +287,29 @@ const getServicesTimelineQuery = (filters) => {
   `;
 };
 
-// Query 10: Andamento problemi aggregati nel tempo (dumps, backups, jobs)
+// Query 10: Andamento problemi nel tempo
 const getProblemsTimelineQuery = (filters) => {
-  const whereClause = buildBaseWhere(filters);
+  const conditions = [];
+  
+  if (filters.startDate && filters.endDate) {
+    conditions.push(`datacontrollo BETWEEN '${sanitize(filters.startDate)}' AND '${sanitize(filters.endDate)}'`);
+  }
+  if (filters.clients && filters.clients.length > 0) {
+    const clientList = filters.clients.map(c => `'${sanitize(c)}'`).join(',');
+    conditions.push(`nomecliente IN (${clientList})`);
+  }
+  if (filters.sids && filters.sids.length > 0) {
+    const sidList = filters.sids.map(s => `'${sanitize(s)}'`).join(',');
+    conditions.push(`sid IN (${sidList})`);
+  } else if (filters.sids && filters.sids.length === 0 && filters.clients && filters.clients.length > 0) {
+    conditions.push(`sid = 'NESSUN_SID_SELEZIONATO'`);
+  }
+  
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const backupConditions = [...conditions, `(backup.STATUS LIKE '%failed%' OR backup.STATUS LIKE '%FAILED%')`];
+  const backupWhereClause = backupConditions.length > 0 ? `WHERE ${backupConditions.join(' AND ')}` : '';
+  const jobConditions = [...conditions, `job.STATUS = 'CANCELLED'`];
+  const jobWhereClause = jobConditions.length > 0 ? `WHERE ${jobConditions.join(' AND ')}` : '';
   
   return `
     WITH daily_dumps AS (
@@ -217,7 +327,7 @@ const getProblemsTimelineQuery = (filters) => {
         COUNT(*) as backup_count
       FROM "sap_reports_db"."reportparquet"
       CROSS JOIN UNNEST(situazione_backup) AS t(backup)
-      ${whereClause ? whereClause + ' AND' : 'WHERE'} (backup.status LIKE '%failed%' OR backup.status LIKE '%FAILED%')
+      ${backupWhereClause}
       GROUP BY datacontrollo
     ),
     daily_jobs AS (
@@ -226,7 +336,7 @@ const getProblemsTimelineQuery = (filters) => {
         COUNT(*) as job_count
       FROM "sap_reports_db"."reportparquet"
       CROSS JOIN UNNEST(abap_batch_jobs) AS t(job)
-      ${whereClause ? whereClause + ' AND' : 'WHERE'} job.status = 'CANCELLED'
+      ${jobWhereClause}
       GROUP BY datacontrollo
     )
     SELECT 
@@ -241,9 +351,8 @@ const getProblemsTimelineQuery = (filters) => {
   `;
 };
 
-// Query per calcolare i trend (periodo precedente)
+// Query per trend (periodo precedente)
 const getPreviousPeriodData = (filters, type) => {
-  // Calcola il periodo precedente basandosi sul range di date
   const start = new Date(filters.startDate);
   const end = new Date(filters.endDate);
   const diff = end - start;
@@ -257,7 +366,23 @@ const getPreviousPeriodData = (filters, type) => {
     endDate: prevEnd.toISOString().split('T')[0]
   };
   
-  const whereClause = buildBaseWhere(prevFilters);
+  const conditions = [];
+  
+  if (prevFilters.startDate && prevFilters.endDate) {
+    conditions.push(`datacontrollo BETWEEN '${sanitize(prevFilters.startDate)}' AND '${sanitize(prevFilters.endDate)}'`);
+  }
+  if (prevFilters.clients && prevFilters.clients.length > 0) {
+    const clientList = prevFilters.clients.map(c => `'${sanitize(c)}'`).join(',');
+    conditions.push(`nomecliente IN (${clientList})`);
+  }
+  if (prevFilters.sids && prevFilters.sids.length > 0) {
+    const sidList = prevFilters.sids.map(s => `'${sanitize(s)}'`).join(',');
+    conditions.push(`sid IN (${sidList})`);
+  } else if (prevFilters.sids && prevFilters.sids.length === 0 && prevFilters.clients && prevFilters.clients.length > 0) {
+    conditions.push(`sid = 'NESSUN_SID_SELEZIONATO'`);
+  }
+  
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   
   switch(type) {
     case 'dumps':
@@ -272,6 +397,8 @@ const getPreviousPeriodData = (filters, type) => {
         GROUP BY nomecliente, datacontrollo
       `;
     case 'backups':
+      const backupConditions = [...conditions, `(backup.STATUS LIKE '%failed%' OR backup.STATUS LIKE '%FAILED%')`];
+      const backupWhereClause = backupConditions.length > 0 ? `WHERE ${backupConditions.join(' AND ')}` : '';
       return `
         SELECT 
           nomecliente,
@@ -279,10 +406,12 @@ const getPreviousPeriodData = (filters, type) => {
           COUNT(*) as failed_backups
         FROM "sap_reports_db"."reportparquet"
         CROSS JOIN UNNEST(situazione_backup) AS t(backup)
-        ${whereClause ? whereClause + ' AND' : 'WHERE'} (backup.status LIKE '%failed%' OR backup.status LIKE '%FAILED%')
+        ${backupWhereClause}
         GROUP BY nomecliente, datacontrollo
       `;
     case 'jobs':
+      const jobConditions = [...conditions, `job.STATUS = 'CANCELLED'`];
+      const jobWhereClause = jobConditions.length > 0 ? `WHERE ${jobConditions.join(' AND ')}` : '';
       return `
         SELECT 
           nomecliente,
@@ -290,7 +419,7 @@ const getPreviousPeriodData = (filters, type) => {
           COUNT(*) as cancelled_jobs
         FROM "sap_reports_db"."reportparquet"
         CROSS JOIN UNNEST(abap_batch_jobs) AS t(job)
-        ${whereClause ? whereClause + ' AND' : 'WHERE'} job.status = 'CANCELLED'
+        ${jobWhereClause}
         GROUP BY nomecliente, datacontrollo
       `;
     default:
@@ -308,6 +437,6 @@ module.exports = {
   getAvailableClientsQuery,
   getAvailableSIDsQuery,
   getPreviousPeriodData,
-  getServicesTimelineQuery,      // ← AGGIUNGI QUESTA
-  getProblemsTimelineQuery        // ← AGGIUNGI QUESTA
+  getServicesTimelineQuery,
+  getProblemsTimelineQuery
 };

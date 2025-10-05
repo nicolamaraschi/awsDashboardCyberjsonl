@@ -393,3 +393,39 @@
 .filter-options::-webkit-scrollbar-thumb:hover {
   background: #999;
 }
+
+/* Aggiungi queste regole alla fine del file SapDashboard.css */
+
+/* Stili per la tabella dettagliata Cliente/SID */
+.details-table tbody tr.first-of-client {
+  border-top: 3px solid #007bff;
+}
+
+.details-table tbody tr.first-of-client td:first-child {
+  padding-top: 1.2rem;
+}
+
+.details-table tbody tr:not(.first-of-client) td:first-child {
+  color: transparent;
+  user-select: none;
+  border-right: none;
+  background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
+}
+
+.details-table tbody tr td:nth-child(2) {
+  font-style: italic;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Zebra striping per gruppi di clienti */
+.details-table tbody tr:nth-child(4n+1),
+.details-table tbody tr:nth-child(4n+2) {
+  background-color: #fafafa;
+}
+
+/* Hover effect migliorato */
+.details-table tbody tr:hover {
+  background-color: #e3f2fd !important;
+  box-shadow: inset 0 0 0 1px #2196f3;
+}
