@@ -1,6 +1,6 @@
 // ====================================================================
 // CLOUDCONNEXA QUERIES - Query per Dashboard CloudConnexa
-// NOTA: log è un STRUCT in extracted_logs_v2, quindi usiamo log.campo
+// VERSIONE COMPLETA CON SECURITY QUERIES
 // ====================================================================
 
 const sanitize = (value) => {
@@ -24,13 +24,13 @@ const sanitize = (value) => {
     
     if (filters.gateways && filters.gateways.length > 0) {
       const gwList = filters.gateways.map(g => `'${sanitize(g)}'`).join(',');
-      conditions.push(`log.gatewayRegionName IN (${gwList})`);
+      conditions.push(`log.sourcegatewayregionname IN (${gwList})`);
     }
     
     return conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   };
   
-  // Query 1: Statistiche Sessioni
+  // Query 1: Statistiche Sessioni - USA client-disconnected per avere i dati reali
   const getSessionStatsQuery = (filters) => {
     const whereClause = buildBaseWhere(filters);
     
@@ -43,7 +43,7 @@ const sanitize = (value) => {
         ROUND(SUM(CAST(log.sessionBytesOut AS BIGINT)) / 1073741824.0, 2) as total_bytes_out_gb
       FROM "cloudconnexa_logs_db"."extracted_logs_v2"
       ${whereClause}
-        AND eventname = 'session-ended'
+        AND eventname = 'client-disconnected'
     `;
   };
   
@@ -62,26 +62,26 @@ const sanitize = (value) => {
     `;
   };
   
-  // Query 3: Timeline Sessioni (per grafico)
+  // Query 3: Timeline Sessioni - USA client-disconnected per avere dati completi
   const getSessionsTimelineQuery = (filters) => {
     const whereClause = buildBaseWhere(filters);
     
     return `
       SELECT 
-        DATE(CAST(timestamp AS TIMESTAMP)) as date,
+        DATE(from_iso8601_timestamp(timestamp)) as date,
         COUNT(*) as session_count,
         COUNT(DISTINCT parententityname) as unique_users,
         ROUND(SUM(CAST(log.sessionBytesIn AS BIGINT)) / 1073741824.0, 2) as bytes_in_gb,
         ROUND(SUM(CAST(log.sessionBytesOut AS BIGINT)) / 1073741824.0, 2) as bytes_out_gb
       FROM "cloudconnexa_logs_db"."extracted_logs_v2"
       ${whereClause}
-        AND eventname = 'session-ended'
-      GROUP BY DATE(CAST(timestamp AS TIMESTAMP))
+        AND eventname = 'client-disconnected'
+      GROUP BY DATE(from_iso8601_timestamp(timestamp))
       ORDER BY date ASC
     `;
   };
   
-  // Query 4: Top Utenti per Traffico
+  // Query 4: Top Utenti per Traffico - USA client-disconnected
   const getTopUsersByTrafficQuery = (filters) => {
     const whereClause = buildBaseWhere(filters);
     
@@ -95,7 +95,7 @@ const sanitize = (value) => {
                SUM(CAST(log.sessionBytesOut AS BIGINT))) / 1073741824.0, 2) as total_traffic_gb
       FROM "cloudconnexa_logs_db"."extracted_logs_v2"
       ${whereClause}
-        AND eventname = 'session-ended'
+        AND eventname = 'client-disconnected'
         AND parententityname IS NOT NULL
       GROUP BY parententityname
       ORDER BY total_traffic_gb DESC
@@ -121,7 +121,7 @@ const sanitize = (value) => {
     `;
   };
   
-  // Query 6: Distribuzione Gateway
+  // Query 6: Distribuzione Gateway - USA client-disconnected
   const getGatewayDistributionQuery = (filters) => {
     const whereClause = buildBaseWhere(filters);
     
@@ -132,14 +132,14 @@ const sanitize = (value) => {
         COUNT(DISTINCT parententityname) as unique_users
       FROM "cloudconnexa_logs_db"."extracted_logs_v2"
       ${whereClause}
-        AND eventname = 'session-ended'
+        AND eventname = 'client-disconnected'
         AND log.gatewayRegionName IS NOT NULL
       GROUP BY log.gatewayRegionName
       ORDER BY session_count DESC
     `;
   };
   
-  // Query 7: Motivi di Disconnessione
+  // Query 7: Motivi di Disconnessione - USA sessionDisconnectReasonDescription
   const getDisconnectReasonsQuery = (filters) => {
     const whereClause = buildBaseWhere(filters);
     
@@ -149,7 +149,7 @@ const sanitize = (value) => {
         COUNT(*) as count
       FROM "cloudconnexa_logs_db"."extracted_logs_v2"
       ${whereClause}
-        AND eventname = 'session-ended'
+        AND eventname = 'client-disconnected'
         AND log.sessionDisconnectReasonDescription IS NOT NULL
       GROUP BY log.sessionDisconnectReasonDescription
       ORDER BY count DESC
@@ -157,21 +157,21 @@ const sanitize = (value) => {
     `;
   };
   
-  // Query 8: Protocolli Utilizzati
+  // Query 8: Protocolli Utilizzati - USA protocolname da flow-established
   const getProtocolDistributionQuery = (filters) => {
     const whereClause = buildBaseWhere(filters);
     
     return `
       SELECT 
-        log.sessionTunnelProtocol as protocol,
+        UPPER(log.protocolname) as protocol,
         COUNT(*) as count,
-        ROUND(SUM(CAST(log.sessionBytesIn AS BIGINT) + 
-                  CAST(log.sessionBytesOut AS BIGINT)) / 1073741824.0, 2) as total_traffic_gb
+        0 as total_traffic_gb
       FROM "cloudconnexa_logs_db"."extracted_logs_v2"
       ${whereClause}
-        AND eventname = 'session-ended'
-        AND log.sessionTunnelProtocol IS NOT NULL
-      GROUP BY log.sessionTunnelProtocol
+        AND eventname = 'flow-established'
+        AND log.protocolname IS NOT NULL
+        AND log.protocolname != ''
+      GROUP BY log.protocolname
       ORDER BY count DESC
     `;
   };
@@ -182,14 +182,14 @@ const sanitize = (value) => {
     
     return `
       SELECT 
-        DATE(CAST(timestamp AS TIMESTAMP)) as date,
+        DATE(from_iso8601_timestamp(timestamp)) as date,
         COUNT(*) as blocked_count,
         COUNT(DISTINCT log.domain) as unique_domains,
         COUNT(DISTINCT parententityname) as affected_users
       FROM "cloudconnexa_logs_db"."extracted_logs_v2"
       ${whereClause}
         AND eventname = 'domain-blocked'
-      GROUP BY DATE(CAST(timestamp AS TIMESTAMP))
+      GROUP BY DATE(from_iso8601_timestamp(timestamp))
       ORDER BY date ASC
     `;
   };
@@ -200,18 +200,19 @@ const sanitize = (value) => {
       SELECT DISTINCT parententityname
       FROM "cloudconnexa_logs_db"."extracted_logs_v2"
       WHERE parententityname IS NOT NULL
-        AND eventname IN ('session-ended', 'domain-blocked')
+        AND eventname IN ('client-disconnected', 'domain-blocked')
       ORDER BY parententityname
       LIMIT 1000
     `;
   };
   
-  // Query 11: Lista Gateway Disponibili
+  // Query 11: Lista Gateway Disponibili - USA gatewayRegionName da client-disconnected
   const getAvailableGatewaysQuery = () => {
     return `
       SELECT DISTINCT log.gatewayRegionName as gateway
       FROM "cloudconnexa_logs_db"."extracted_logs_v2"
       WHERE log.gatewayRegionName IS NOT NULL
+        AND eventname = 'client-disconnected'
       ORDER BY gateway
     `;
   };
@@ -241,26 +242,97 @@ const sanitize = (value) => {
     }
   };
   
-  // Query 13: Flussi Stabiliti per Destinazione (Top risorse accedute)
+  // Query 13: Flussi Stabiliti per Destinazione - USA initiator per gli utenti
   const getTopDestinationsQuery = (filters) => {
     const whereClause = buildBaseWhere(filters);
     
     return `
       SELECT 
-        log.destinationEntityIp as destination_ip,
-        CAST(log.destinationPort AS VARCHAR) as destination_port,
-        log.protocolName as protocol,
+        log.destinationentityip as destination_ip,
+        CAST(log.destinationport AS VARCHAR) as destination_port,
+        UPPER(log.protocolname) as protocol,
         COUNT(*) as connection_count,
-        COUNT(DISTINCT parententityname) as unique_users
+        COUNT(DISTINCT initiator) as unique_users
       FROM "cloudconnexa_logs_db"."extracted_logs_v2"
       ${whereClause}
         AND eventname = 'flow-established'
-        AND log.destinationEntityIp IS NOT NULL
+        AND log.destinationentityip IS NOT NULL
       GROUP BY 
-        log.destinationEntityIp,
-        log.destinationPort,
-        log.protocolName
+        log.destinationentityip,
+        log.destinationport,
+        log.protocolname
       ORDER BY connection_count DESC
+      LIMIT 15
+    `;
+  };
+
+  // ====================================================================
+  // SECURITY QUERIES - Query avanzate per cybersecurity
+  // ====================================================================
+
+  // Query 14: Tentativi di Accesso Bloccati (Security)
+  const getBlockedAccessAttemptsQuery = (filters) => {
+    const whereClause = buildBaseWhere(filters);
+    
+    return `
+      SELECT 
+        log.destinationentityip as blocked_destination,
+        CAST(log.destinationport AS VARCHAR) as destination_port,
+        COUNT(*) as blocked_attempts,
+        COUNT(DISTINCT initiator) as affected_users
+      FROM "cloudconnexa_logs_db"."extracted_logs_v2"
+      ${whereClause}
+        AND eventname = 'flow-established'
+        AND log.allowed = false
+      GROUP BY log.destinationentityip, log.destinationport
+      ORDER BY blocked_attempts DESC
+      LIMIT 15
+    `;
+  };
+
+  // Query 15: Porte Non Standard (Security)
+  const getNonStandardPortsQuery = (filters) => {
+    const whereClause = buildBaseWhere(filters);
+    
+    return `
+      SELECT 
+        CAST(log.destinationport AS VARCHAR) as port,
+        UPPER(log.protocolname) as protocol,
+        COUNT(*) as connection_count,
+        COUNT(DISTINCT initiator) as unique_users,
+        COUNT(DISTINCT log.destinationentityip) as unique_destinations
+      FROM "cloudconnexa_logs_db"."extracted_logs_v2"
+      ${whereClause}
+        AND eventname = 'flow-established'
+        AND log.destinationport NOT IN (80, 443, 22, 3389, 445, 3306, 1433, 5432)
+      GROUP BY log.destinationport, log.protocolname
+      ORDER BY connection_count DESC
+      LIMIT 20
+    `;
+  };
+
+  // Query 16: Traffico Asimmetrico (Potential Data Exfiltration)
+  const getAsymmetricTrafficQuery = (filters) => {
+    const whereClause = buildBaseWhere(filters);
+    
+    return `
+      SELECT 
+        parententityname as username,
+        COUNT(*) as sessions,
+        ROUND(SUM(CAST(log.sessionBytesIn AS BIGINT)) / 1073741824.0, 2) as download_gb,
+        ROUND(SUM(CAST(log.sessionBytesOut AS BIGINT)) / 1073741824.0, 2) as upload_gb,
+        ROUND(
+          SUM(CAST(log.sessionBytesOut AS BIGINT)) / 
+          NULLIF(SUM(CAST(log.sessionBytesIn AS BIGINT)), 0), 
+          2
+        ) as upload_download_ratio
+      FROM "cloudconnexa_logs_db"."extracted_logs_v2"
+      ${whereClause}
+        AND eventname = 'client-disconnected'
+        AND log.sessionBytesIn > 0
+      GROUP BY parententityname
+      HAVING SUM(CAST(log.sessionBytesOut AS BIGINT)) > SUM(CAST(log.sessionBytesIn AS BIGINT))
+      ORDER BY upload_download_ratio DESC
       LIMIT 15
     `;
   };
@@ -278,5 +350,8 @@ const sanitize = (value) => {
     getAvailableUsersQuery,
     getAvailableGatewaysQuery,
     getPreviousPeriodStats,
-    getTopDestinationsQuery
+    getTopDestinationsQuery,
+    getBlockedAccessAttemptsQuery,
+    getNonStandardPortsQuery,
+    getAsymmetricTrafficQuery
   };

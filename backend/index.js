@@ -25,7 +25,7 @@ const {
   getProblemsTimelineQuery
 } = require('./sap-queries');
 
-// Import CloudConnexa queries
+// Import CloudConnexa queries (TUTTE, incluse le 3 nuove security queries)
 const {
   getSessionStatsQuery,
   getBlockedDomainsQuery,
@@ -39,7 +39,10 @@ const {
   getAvailableUsersQuery,
   getAvailableGatewaysQuery,
   getPreviousPeriodStats,
-  getTopDestinationsQuery
+  getTopDestinationsQuery,
+  getBlockedAccessAttemptsQuery,
+  getNonStandardPortsQuery,
+  getAsymmetricTrafficQuery
 } = require('./cloudconnexa-queries');
 
 const app = express();
@@ -111,14 +114,14 @@ app.get('/api/cloudconnexa/gateways', async (req, res) => {
   }
 });
 
-// Endpoint principale per la dashboard CloudConnexa
+// Endpoint principale per la dashboard CloudConnexa (CON SECURITY QUERIES)
 app.post('/api/cloudconnexa/dashboard', async (req, res) => {
   try {
     const filters = req.body;
     
     console.log('Filtri CloudConnexa ricevuti:', filters);
 
-    // Esegui tutte le query in parallelo
+    // Esegui tutte le query in parallelo (incluse le 3 nuove security queries)
     const [
       sessionStats,
       blockedDomains,
@@ -131,7 +134,10 @@ app.post('/api/cloudconnexa/dashboard', async (req, res) => {
       securityTimeline,
       topDestinations,
       prevSessionStats,
-      prevBlockedDomains
+      prevBlockedDomains,
+      blockedAccessAttempts,
+      nonStandardPorts,
+      asymmetricTraffic
     ] = await Promise.all([
       runQuery(getSessionStatsQuery(filters)),
       runQuery(getBlockedDomainsQuery(filters)),
@@ -144,7 +150,10 @@ app.post('/api/cloudconnexa/dashboard', async (req, res) => {
       runQuery(getSecurityEventsTimelineQuery(filters)),
       runQuery(getTopDestinationsQuery(filters)),
       runQuery(getPreviousPeriodStats(filters, 'sessions')),
-      runQuery(getPreviousPeriodStats(filters, 'blocked'))
+      runQuery(getPreviousPeriodStats(filters, 'blocked')),
+      runQuery(getBlockedAccessAttemptsQuery(filters)),
+      runQuery(getNonStandardPortsQuery(filters)),
+      runQuery(getAsymmetricTrafficQuery(filters))
     ]);
 
     // Calcola i KPI dal primo risultato
@@ -227,7 +236,10 @@ app.post('/api/cloudconnexa/dashboard', async (req, res) => {
         disconnectReasons: disconnectReasons,
         protocolDistribution: protocolDistribution,
         securityTimeline: securityTimeline,
-        topDestinations: topDestinations
+        topDestinations: topDestinations,
+        blockedAccessAttempts: blockedAccessAttempts,
+        nonStandardPorts: nonStandardPorts,
+        asymmetricTraffic: asymmetricTraffic
       }
     });
 

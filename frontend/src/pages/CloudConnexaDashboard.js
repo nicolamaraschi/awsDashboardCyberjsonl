@@ -122,10 +122,11 @@ const CloudConnexaDashboard = () => {
         gateways: selectedGateways
       };
       
-      console.log('📊 Invio filtri CloudConnexa:', filters);
-      
       const response = await axios.post(`${API_URL}/api/cloudconnexa/dashboard`, filters);
       setDashboardData(response.data);
+      
+      console.log('Dati ricevuti dal backend:', response.data);
+      console.log('asymmetricTraffic:', response.data?.charts?.asymmetricTraffic);
     } catch (err) {
       setError('Errore nel caricamento dei dati. Verifica la connessione al backend.');
       console.error('Errore dashboard CloudConnexa:', err);
@@ -162,8 +163,6 @@ const CloudConnexaDashboard = () => {
     }
   };
 
-  // ========== CHART DATA FUNCTIONS ==========
-
   const getSessionsTimelineData = () => {
     if (!dashboardData?.charts?.sessionsTimeline) return null;
     
@@ -174,9 +173,7 @@ const CloudConnexaDashboard = () => {
     data.forEach(item => {
       dataMap[item.date] = {
         session_count: parseInt(item.session_count || 0),
-        unique_users: parseInt(item.unique_users || 0),
-        bytes_in_gb: parseFloat(item.bytes_in_gb || 0),
-        bytes_out_gb: parseFloat(item.bytes_out_gb || 0)
+        unique_users: parseInt(item.unique_users || 0)
       };
     });
     
@@ -197,8 +194,7 @@ const CloudConnexaDashboard = () => {
           borderColor: 'rgba(54, 162, 235, 1)', 
           backgroundColor: 'rgba(54, 162, 235, 0.1)', 
           tension: 0.3, 
-          fill: true,
-          yAxisID: 'y'
+          fill: true
         },
         { 
           label: 'Utenti Unici', 
@@ -206,8 +202,7 @@ const CloudConnexaDashboard = () => {
           borderColor: 'rgba(75, 192, 192, 1)', 
           backgroundColor: 'rgba(75, 192, 192, 0.1)', 
           tension: 0.3, 
-          fill: true,
-          yAxisID: 'y'
+          fill: true
         }
       ]
     };
@@ -330,8 +325,7 @@ const CloudConnexaDashboard = () => {
     
     data.forEach(item => {
       dataMap[item.date] = {
-        blocked_count: parseInt(item.blocked_count || 0),
-        unique_domains: parseInt(item.unique_domains || 0)
+        blocked_count: parseInt(item.blocked_count || 0)
       };
     });
     
@@ -351,6 +345,46 @@ const CloudConnexaDashboard = () => {
         backgroundColor: 'rgba(255, 99, 132, 0.2)',
         tension: 0.3,
         fill: true
+      }]
+    };
+  };
+
+  const getBlockedAccessAttemptsData = () => {
+    if (!dashboardData?.charts?.blockedAccessAttempts) return null;
+    const data = dashboardData.charts.blockedAccessAttempts;
+    
+    return {
+      labels: data.map(item => `${item.blocked_destination}:${item.destination_port}`),
+      datasets: [{
+        label: 'Tentativi Bloccati',
+        data: data.map(item => parseInt(item.blocked_attempts || 0)),
+        backgroundColor: 'rgba(220, 53, 69, 0.7)'
+      }, {
+        label: 'Utenti Coinvolti',
+        data: data.map(item => parseInt(item.affected_users || 0)),
+        backgroundColor: 'rgba(255, 193, 7, 0.7)'
+      }]
+    };
+  };
+
+  const getNonStandardPortsData = () => {
+    if (!dashboardData?.charts?.nonStandardPorts) return null;
+    const data = dashboardData.charts.nonStandardPorts.slice(0, 10);
+    
+    const colors = [
+      'rgba(255, 99, 132, 0.8)', 'rgba(54, 162, 235, 0.8)', 'rgba(255, 206, 86, 0.8)',
+      'rgba(75, 192, 192, 0.8)', 'rgba(153, 102, 255, 0.8)', 'rgba(255, 159, 64, 0.8)',
+      'rgba(199, 199, 199, 0.8)', 'rgba(83, 102, 255, 0.8)', 'rgba(255, 102, 178, 0.8)',
+      'rgba(102, 255, 178, 0.8)'
+    ];
+    
+    return {
+      labels: data.map(item => `Porta ${item.port} (${item.protocol})`),
+      datasets: [{
+        data: data.map(item => parseInt(item.connection_count || 0)),
+        backgroundColor: colors,
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.8)'
       }]
     };
   };
@@ -393,7 +427,7 @@ const CloudConnexaDashboard = () => {
 
   return (
     <div className="cloudconnexa-dashboard">
-      <h1>🛡️ Dashboard CloudConnexa - Network Security & Performance</h1>
+      <h1>Dashboard CloudConnexa - Network Security & Performance</h1>
       
       <div className="filters-container">
         <div className="filter-section">
@@ -437,7 +471,7 @@ const CloudConnexaDashboard = () => {
             )}
           </label>
           <div className="filter-options">
-            {availableUsers.slice(0, 50).map(user => (
+            {availableUsers.map(user => (
               <label key={user.parententityname} className="checkbox-label">
                 <input 
                   type="checkbox" 
@@ -447,9 +481,6 @@ const CloudConnexaDashboard = () => {
                 {user.parententityname}
               </label>
             ))}
-            {availableUsers.length > 50 && (
-              <p className="filter-note">Mostrando 50 di {availableUsers.length} utenti</p>
-            )}
           </div>
         </div>
         
@@ -531,37 +562,11 @@ const CloudConnexaDashboard = () => {
           
           <div className="charts-grid">
             <div className="chart-card full-width">
-              <h2>📈 Andamento Sessioni e Utenti</h2>
+              <h2>Andamento Sessioni e Utenti</h2>
               <p className="chart-subtitle">Trend di connessioni e utenti attivi nel periodo</p>
               {getSessionsTimelineData() ? (
                 <div className="chart-container-timeline">
-                  <Line 
-                    data={getSessionsTimelineData()} 
-                    options={{ 
-                      responsive: true, 
-                      maintainAspectRatio: false,
-                      interaction: { mode: 'index', intersect: false },
-                      plugins: { 
-                        legend: { position: 'top' },
-                        tooltip: {
-                          callbacks: {
-                            label: function(context) {
-                              return `${context.dataset.label}: ${context.parsed.y}`;
-                            }
-                          }
-                        }
-                      },
-                      scales: {
-                        y: {
-                          type: 'linear',
-                          display: true,
-                          position: 'left',
-                          beginAtZero: true,
-                          title: { display: true, text: 'Count' }
-                        }
-                      }
-                    }} 
-                  />
+                  <Line data={getSessionsTimelineData()} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }} />
                 </div>
               ) : (
                 <div className="no-data">Nessun dato disponibile</div>
@@ -569,21 +574,11 @@ const CloudConnexaDashboard = () => {
             </div>
             
             <div className="chart-card full-width">
-              <h2>🚨 Timeline Eventi di Sicurezza</h2>
+              <h2>Timeline Eventi di Sicurezza</h2>
               <p className="chart-subtitle">Domini bloccati nel tempo</p>
               {getSecurityTimelineData() ? (
                 <div className="chart-container-timeline">
-                  <Line 
-                    data={getSecurityTimelineData()} 
-                    options={{ 
-                      responsive: true, 
-                      maintainAspectRatio: false,
-                      plugins: { legend: { position: 'top' } },
-                      scales: { 
-                        y: { beginAtZero: true, title: { display: true, text: 'Domini Bloccati' } }
-                      }
-                    }} 
-                  />
+                  <Line data={getSecurityTimelineData()} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }} />
                 </div>
               ) : (
                 <div className="no-data">Nessun dato disponibile</div>
@@ -591,36 +586,11 @@ const CloudConnexaDashboard = () => {
             </div>
             
             <div className="chart-card">
-              <h2>🏆 Top 10 Utenti per Traffico</h2>
+              <h2>Top 10 Utenti per Traffico</h2>
               <p className="chart-subtitle">Maggiori consumatori di banda</p>
               {getTopUsersData() ? (
                 <div className="chart-container">
-                  <Bar 
-                    data={getTopUsersData()} 
-                    options={{ 
-                      responsive: true, 
-                      maintainAspectRatio: false,
-                      indexAxis: 'y',
-                      plugins: { 
-                        legend: { position: 'top' },
-                        tooltip: {
-                          callbacks: {
-                            label: function(context) {
-                              return `${context.dataset.label}: ${context.parsed.x.toFixed(2)} GB`;
-                            }
-                          }
-                        }
-                      },
-                      scales: { 
-                        x: { 
-                          stacked: true, 
-                          beginAtZero: true,
-                          title: { display: true, text: 'Traffico (GB)' }
-                        },
-                        y: { stacked: true }
-                      }
-                    }} 
-                  />
+                  <Bar data={getTopUsersData()} options={{ responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { position: 'top' } }, scales: { x: { stacked: true, beginAtZero: true }, y: { stacked: true } } }} />
                 </div>
               ) : (
                 <div className="no-data">Nessun dato disponibile</div>
@@ -628,32 +598,11 @@ const CloudConnexaDashboard = () => {
             </div>
             
             <div className="chart-card">
-              <h2>🛡️ Categorie Domini Bloccati</h2>
+              <h2>Categorie Domini Bloccati</h2>
               <p className="chart-subtitle">Tipologie di minacce rilevate</p>
               {getBlockedByCategoryData() ? (
                 <div className="chart-container">
-                  <Doughnut 
-                    data={getBlockedByCategoryData()} 
-                    options={{ 
-                      responsive: true, 
-                      maintainAspectRatio: false,
-                      plugins: { 
-                        legend: { 
-                          position: 'right',
-                          labels: { boxWidth: 15, padding: 8, font: { size: 11 } }
-                        },
-                        tooltip: {
-                          callbacks: {
-                            label: function(context) {
-                              const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                              const percentage = ((context.parsed / total) * 100).toFixed(1);
-                              return `${context.label}: ${context.parsed} (${percentage}%)`;
-                            }
-                          }
-                        }
-                      }
-                    }} 
-                  />
+                  <Doughnut data={getBlockedByCategoryData()} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }} />
                 </div>
               ) : (
                 <div className="no-data">Nessun dato disponibile</div>
@@ -661,19 +610,11 @@ const CloudConnexaDashboard = () => {
             </div>
             
             <div className="chart-card">
-              <h2>🌍 Distribuzione Gateway</h2>
+              <h2>Distribuzione Gateway</h2>
               <p className="chart-subtitle">Regioni di connessione</p>
               {getGatewayDistributionData() ? (
                 <div className="chart-container">
-                  <Bar 
-                    data={getGatewayDistributionData()} 
-                    options={{ 
-                      responsive: true, 
-                      maintainAspectRatio: false,
-                      plugins: { legend: { position: 'top' } },
-                      scales: { y: { beginAtZero: true } }
-                    }} 
-                  />
+                  <Bar data={getGatewayDistributionData()} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }} />
                 </div>
               ) : (
                 <div className="no-data">Nessun dato disponibile</div>
@@ -681,29 +622,11 @@ const CloudConnexaDashboard = () => {
             </div>
             
             <div className="chart-card">
-              <h2>🔌 Protocolli Utilizzati</h2>
+              <h2>Protocolli Utilizzati</h2>
               <p className="chart-subtitle">Mix di traffico per protocollo</p>
               {getProtocolDistributionData() ? (
                 <div className="chart-container">
-                  <Doughnut 
-                    data={getProtocolDistributionData()} 
-                    options={{ 
-                      responsive: true, 
-                      maintainAspectRatio: false,
-                      plugins: { 
-                        legend: { position: 'bottom' },
-                        tooltip: {
-                          callbacks: {
-                            label: function(context) {
-                              const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                              const percentage = ((context.parsed / total) * 100).toFixed(1);
-                              return `${context.label}: ${context.parsed} (${percentage}%)`;
-                            }
-                          }
-                        }
-                      }
-                    }} 
-                  />
+                  <Doughnut data={getProtocolDistributionData()} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }} />
                 </div>
               ) : (
                 <div className="no-data">Nessun dato disponibile</div>
@@ -711,32 +634,35 @@ const CloudConnexaDashboard = () => {
             </div>
             
             <div className="chart-card full-width">
-              <h2>❌ Motivi di Disconnessione</h2>
+              <h2>Motivi di Disconnessione</h2>
               <p className="chart-subtitle">Analisi problemi di rete</p>
               {getDisconnectReasonsData() ? (
                 <div className="chart-container">
-                  <Bar 
-                    data={getDisconnectReasonsData()} 
-                    options={{ 
-                      responsive: true, 
-                      maintainAspectRatio: false,
-                      indexAxis: 'y',
-                      plugins: { 
-                        legend: { display: false },
-                        tooltip: {
-                          callbacks: {
-                            title: function(context) {
-                              const fullReason = dashboardData.charts.disconnectReasons[context[0].dataIndex]?.reason || '';
-                              return fullReason;
-                            }
-                          }
-                        }
-                      },
-                      scales: { 
-                        x: { beginAtZero: true, title: { display: true, text: 'Numero di Occorrenze' } }
-                      }
-                    }} 
-                  />
+                  <Bar data={getDisconnectReasonsData()} options={{ responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }} />
+                </div>
+              ) : (
+                <div className="no-data">Nessun dato disponibile</div>
+              )}
+            </div>
+            
+            <div className="chart-card">
+              <h2>Tentativi di Accesso Bloccati</h2>
+              <p className="chart-subtitle">Destinazioni con accessi negati</p>
+              {getBlockedAccessAttemptsData() ? (
+                <div className="chart-container">
+                  <Bar data={getBlockedAccessAttemptsData()} options={{ responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { position: 'top' } }, scales: { x: { beginAtZero: true } } }} />
+                </div>
+              ) : (
+                <div className="no-data">Nessun accesso bloccato</div>
+              )}
+            </div>
+            
+            <div className="chart-card">
+              <h2>Porte Non Standard</h2>
+              <p className="chart-subtitle">Connessioni a porte sospette (Top 10)</p>
+              {getNonStandardPortsData() ? (
+                <div className="chart-container">
+                  <Doughnut data={getNonStandardPortsData()} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }} />
                 </div>
               ) : (
                 <div className="no-data">Nessun dato disponibile</div>
@@ -746,7 +672,7 @@ const CloudConnexaDashboard = () => {
           
           {dashboardData.charts.topDestinations && dashboardData.charts.topDestinations.length > 0 && (
             <div className="details-table">
-              <h2>🎯 Top 15 Destinazioni Accedute</h2>
+              <h2>Top 15 Destinazioni Accedute</h2>
               <table>
                 <thead>
                   <tr>
@@ -771,6 +697,69 @@ const CloudConnexaDashboard = () => {
               </table>
             </div>
           )}
+          
+          {dashboardData && dashboardData.charts && dashboardData.charts.asymmetricTraffic && Array.isArray(dashboardData.charts.asymmetricTraffic) && dashboardData.charts.asymmetricTraffic.length > 0 ? (
+  <div className="details-table">
+    <h2>Traffico Asimmetrico Anomalo</h2>
+    <p className="chart-subtitle" style={{ marginBottom: '1rem' }}>
+      Utenti con upload maggiore del download (possibile esfiltrazione dati)
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Utente</th>
+          <th>Sessioni</th>
+          <th>Download (GB)</th>
+          <th>Upload (GB)</th>
+          <th>Ratio Upload/Download</th>
+          <th>Rischio</th>
+        </tr>
+      </thead>
+      <tbody>
+        {dashboardData.charts.asymmetricTraffic.map((item, index) => {
+          const ratio = parseFloat(item.upload_download_ratio || 0);
+          const riskLevel = ratio > 10 ? 'ALTO' : ratio > 5 ? 'MEDIO' : 'BASSO';
+          const riskColor = ratio > 10 ? '#dc3545' : ratio > 5 ? '#ffc107' : '#28a745';
+          
+          return (
+            <tr key={`asymmetric-${index}`}>
+              <td style={{ minWidth: '250px' }}>
+                <strong style={{ color: '#333', fontSize: '14px' }}>
+                  {item.username}
+                </strong>
+              </td>
+              <td style={{ color: '#333' }}>{item.sessions}</td>
+              <td style={{ color: '#333' }}>{item.download_gb}</td>
+              <td style={{ color: '#dc3545', fontWeight: 'bold' }}>
+                {item.upload_gb}
+              </td>
+              <td style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#333' }}>
+                {ratio.toFixed(1)}:1
+              </td>
+              <td>
+                <span 
+                  style={{ 
+                    display: 'inline-block',
+                    padding: '0.3rem 0.8rem',
+                    backgroundColor: riskColor,
+                    color: 'white',
+                    borderRadius: '4px',
+                    fontWeight: 'bold',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  {riskLevel}
+                </span>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+) : null}
+
+
         </>
       )}
     </div>
