@@ -1,0 +1,439 @@
+/* CloudConnexa Dashboard Styles */
+
+.cloudconnexa-dashboard {
+    padding: 2rem;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+  
+  .cloudconnexa-dashboard h1 {
+    color: #333;
+    margin-bottom: 2rem;
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  /* Filters Container - Riusa gli stili SAP */
+  .cloudconnexa-dashboard .filters-container {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .cloudconnexa-dashboard .filter-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .cloudconnexa-dashboard .filter-section label {
+    font-weight: 600;
+    color: #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .cloudconnexa-dashboard .time-range-select {
+    width: 100%;
+    padding: 0.6rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background-color: white;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  
+  .cloudconnexa-dashboard .time-range-select:hover {
+    border-color: #007bff;
+  }
+  
+  .cloudconnexa-dashboard .time-range-select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  }
+  
+  .cloudconnexa-dashboard .date-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .cloudconnexa-dashboard .date-inputs input[type="date"] {
+    flex: 1;
+    padding: 0.6rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.95rem;
+  }
+  
+  .cloudconnexa-dashboard .date-inputs span {
+    color: #666;
+    font-weight: bold;
+  }
+  
+  .cloudconnexa-dashboard .filter-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    background: #fafafa;
+  }
+  
+  .cloudconnexa-dashboard .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 0.4rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+  
+  .cloudconnexa-dashboard .checkbox-label:hover {
+    background-color: #f0f0f0;
+  }
+  
+  .cloudconnexa-dashboard .checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #007bff;
+  }
+  
+  .cloudconnexa-dashboard .select-all-btn {
+    background: none;
+    border: 1px solid #007bff;
+    color: #007bff;
+    padding: 0.3rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .cloudconnexa-dashboard .select-all-btn:hover {
+    background-color: #007bff;
+    color: white;
+  }
+  
+  .cloudconnexa-dashboard .filter-note {
+    font-size: 0.85rem;
+    color: #666;
+    font-style: italic;
+    text-align: center;
+    padding-top: 0.5rem;
+    border-top: 1px solid #eee;
+  }
+  
+  /* KPI Grid */
+  .cloudconnexa-dashboard .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .cloudconnexa-dashboard .kpi-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .cloudconnexa-dashboard .kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  }
+  
+  .cloudconnexa-dashboard .kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+  }
+  
+  .cloudconnexa-dashboard .kpi-card h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #666;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .cloudconnexa-dashboard .kpi-icon {
+    font-size: 2rem;
+    opacity: 0.3;
+  }
+  
+  .cloudconnexa-dashboard .kpi-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 0.5rem;
+  }
+  
+  .cloudconnexa-dashboard .kpi-subtitle {
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 0.75rem;
+    line-height: 1.4;
+  }
+  
+  .cloudconnexa-dashboard .kpi-trend {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+  }
+  
+  .cloudconnexa-dashboard .trend-icon {
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+  
+  .cloudconnexa-dashboard .trend-label {
+    font-weight: 600;
+  }
+  
+  .cloudconnexa-dashboard .trend-period {
+    color: #999;
+    font-size: 0.85rem;
+  }
+  
+  .cloudconnexa-dashboard .kpi-status {
+    margin-top: 0.75rem;
+    padding: 0.4rem 0.8rem;
+    background-color: #fff3cd;
+    color: #856404;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-align: center;
+  }
+  
+  /* Charts Grid */
+  .cloudconnexa-dashboard .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .cloudconnexa-dashboard .chart-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+  
+  .cloudconnexa-dashboard .chart-card.full-width {
+    grid-column: 1 / -1;
+  }
+  
+  .cloudconnexa-dashboard .chart-card h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.2rem;
+    color: #333;
+  }
+  
+  .cloudconnexa-dashboard .chart-subtitle {
+    margin: 0 0 1.5rem 0;
+    font-size: 0.9rem;
+    color: #666;
+  }
+  
+  .cloudconnexa-dashboard .chart-container {
+    height: 350px;
+    position: relative;
+  }
+  
+  .cloudconnexa-dashboard .chart-container-timeline {
+    height: 350px;
+    position: relative;
+  }
+  
+  /* Details Table */
+  .cloudconnexa-dashboard .details-table {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow-x: auto;
+    margin-bottom: 2rem;
+  }
+  
+  .cloudconnexa-dashboard .details-table h2 {
+    margin: 0 0 1.5rem 0;
+    font-size: 1.2rem;
+    color: #333;
+  }
+  
+  .cloudconnexa-dashboard .details-table table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .cloudconnexa-dashboard .details-table th,
+  .cloudconnexa-dashboard .details-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .cloudconnexa-dashboard .details-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+  }
+  
+  .cloudconnexa-dashboard .details-table td {
+    color: #333;
+  }
+  
+  .cloudconnexa-dashboard .details-table td code {
+    background-color: #f5f5f5;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    color: #d63384;
+  }
+  
+  .cloudconnexa-dashboard .protocol-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background-color: #e3f2fd;
+    color: #1976d2;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  
+  .cloudconnexa-dashboard .details-table tbody tr:hover {
+    background-color: #f8f9fa;
+  }
+  
+  /* Loading and Error States */
+  .cloudconnexa-dashboard .loader {
+    text-align: center;
+    padding: 3rem;
+    font-size: 1.1rem;
+    color: #666;
+  }
+  
+  .cloudconnexa-dashboard .loader::after {
+    content: '...';
+    animation: dots 1.5s steps(3, end) infinite;
+  }
+  
+  @keyframes dots {
+    0%, 20% { content: '.'; }
+    40% { content: '..'; }
+    60%, 100% { content: '...'; }
+  }
+  
+  .cloudconnexa-dashboard .error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    border: 1px solid #f5c6cb;
+  }
+  
+  .cloudconnexa-dashboard .no-data {
+    text-align: center;
+    padding: 2rem;
+    color: #999;
+    font-style: italic;
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 1200px) {
+    .cloudconnexa-dashboard .charts-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .cloudconnexa-dashboard {
+      padding: 1rem;
+    }
+  
+    .cloudconnexa-dashboard h1 {
+      font-size: 1.5rem;
+    }
+  
+    .cloudconnexa-dashboard .filters-container {
+      grid-template-columns: 1fr;
+      padding: 1rem;
+    }
+  
+    .cloudconnexa-dashboard .kpi-grid {
+      grid-template-columns: 1fr;
+    }
+  
+    .cloudconnexa-dashboard .charts-grid {
+      grid-template-columns: 1fr;
+    }
+  
+    .cloudconnexa-dashboard .chart-container {
+      height: 300px;
+    }
+  
+    .cloudconnexa-dashboard .chart-container-timeline {
+      height: 300px;
+    }
+  
+    .cloudconnexa-dashboard .details-table {
+      padding: 1rem;
+    }
+  
+    .cloudconnexa-dashboard .details-table th,
+    .cloudconnexa-dashboard .details-table td {
+      padding: 0.6rem 0.4rem;
+      font-size: 0.85rem;
+    }
+  }
+  
+  /* Scrollbar personalizzata per filter-options */
+  .cloudconnexa-dashboard .filter-options::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .cloudconnexa-dashboard .filter-options::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+  }
+  
+  .cloudconnexa-dashboard .filter-options::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 10px;
+  }
+  
+  .cloudconnexa-dashboard .filter-options::-webkit-scrollbar-thumb:hover {
+    background: #999;
+  }

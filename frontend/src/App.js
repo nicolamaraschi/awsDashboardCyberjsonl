@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Sidebar from './components/Sidebar';
 import Search from './pages/Search';
 import SAPDashboard from './pages/SapDashboard';
+import CloudConnexaDashboard from './pages/CloudConnexaDashboard';
 import './App.css';
 
 function App() {
@@ -22,6 +23,9 @@ function App() {
             
             {/* Route per la dashboard SAP */}
             <Route path="/sap/dashboard" element={<SAPDashboard />} />
+            
+            {/* Route per la dashboard CloudConnexa */}
+            <Route path="/cloudconnexa/dashboard" element={<CloudConnexaDashboard />} />
             
             {/* Route per le ricerche CloudConnexa */}
             <Route path="/search/:type" element={<Search />} />

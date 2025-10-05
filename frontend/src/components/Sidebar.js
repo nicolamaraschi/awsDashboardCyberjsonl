@@ -40,6 +40,11 @@ function Sidebar() {
           </div>
         </li>
         <li>
+          <NavLink to="/cloudconnexa/dashboard" className={({ isActive }) => isActive ? "active" : ""}>
+            🛡️ Dashboard Principale
+          </NavLink>
+        </li>
+        <li>
           <NavLink to="/search/flow-established" className={({ isActive }) => isActive ? "active" : ""}>
             Estrazione Flussi
           </NavLink>
