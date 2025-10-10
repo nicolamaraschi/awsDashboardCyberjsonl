@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import axios from 'axios';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement, Filler } from 'chart.js';
@@ -33,6 +35,7 @@ const CloudConnexaDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const dashboardRef = useRef(null);
 
   const calculateDateRange = (rangeType) => {
     const today = new Date();
@@ -441,9 +444,107 @@ const CloudConnexaDashboard = () => {
     );
   };
 
+  const handleExport = async (exportType) => {
+    const dashboard = dashboardRef.current;
+    if (!dashboard) return;
+
+    // Temporarily remove the export buttons from the capture
+    const exportButtons = dashboard.querySelector('.export-buttons');
+    if (exportButtons) {
+      exportButtons.style.display = 'none';
+    }
+
+    const canvas = await html2canvas(dashboard, {
+      scale: 2, // Higher scale for better quality
+      useCORS: true, // To handle images from other origins
+      logging: true,
+      width: dashboard.scrollWidth,
+      height: dashboard.scrollHeight,
+      windowWidth: dashboard.scrollWidth,
+      windowHeight: dashboard.scrollHeight,
+    });
+
+    // Restore the export buttons
+    if (exportButtons) {
+      exportButtons.style.display = 'block';
+    }
+
+    const generatePdf = () => {
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const pdf = new jsPDF({
+        orientation: 'l',
+        unit: 'px',
+        format: 'a4',
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const ratio = imgWidth / pdfWidth;
+      const scaledImgHeight = imgHeight / ratio;
+
+      let position = 0;
+      let page = 1;
+
+      while (position < scaledImgHeight) {
+        if (page > 1) {
+          pdf.addPage();
+        }
+
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = imgWidth;
+        pageCanvas.height = pdfHeight * ratio;
+
+        const pageContext = pageCanvas.getContext('2d');
+        pageContext.drawImage(
+          canvas,
+          0,
+          position * ratio,
+          imgWidth,
+          pdfHeight * ratio,
+          0,
+          0,
+          imgWidth,
+          pdfHeight * ratio
+        );
+
+        const pageImgData = pageCanvas.toDataURL('image/png');
+        pdf.addImage(pageImgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+
+        position += pdfHeight;
+        page++;
+      }
+      return pdf;
+    };
+
+    if (exportType === 'pdf') {
+      const pdf = generatePdf();
+      pdf.save(`cloudconnexa-dashboard-${new Date().toISOString().split('T')[0]}.pdf`);
+    } else if (exportType === 'email') {
+      const pdf = generatePdf();
+      pdf.save(`cloudconnexa-dashboard-${new Date().toISOString().split('T')[0]}.pdf`);
+
+      const subject = `CloudConnexa Dashboard Report - ${new Date().toISOString().split('T')[0]}`;
+      const body = `The CloudConnexa Dashboard PDF report has been downloaded to your computer (usually in the 'Downloads' folder).\n\nPlease attach the file to this email before sending.\n\nGenerated on: ${new Date().toLocaleString()}`;
+      const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.open(mailtoLink, '_blank');
+    }
+  };
+
   return (
-    <div className="cloudconnexa-dashboard">
-      <h1>Dashboard CloudConnexa - Network Security & Performance</h1>
+    <div className="cloudconnexa-dashboard" ref={dashboardRef}>
+      <div className="dashboard-header">
+        <h1>Dashboard CloudConnexa - Network Security & Performance</h1>
+        <div className="export-buttons">
+          <button onClick={() => handleExport('pdf')} className="export-btn">
+            Download PDF
+          </button>
+          <button onClick={() => handleExport('email')} className="export-btn">
+            Send Email
+          </button>
+        </div>
+      </div>
       
       <div className="filters-container">
         <div className="filter-section">

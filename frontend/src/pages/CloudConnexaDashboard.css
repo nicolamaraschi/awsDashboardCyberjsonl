@@ -437,3 +437,30 @@
   .cloudconnexa-dashboard .filter-options::-webkit-scrollbar-thumb:hover {
     background: #999;
   }
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.export-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+.export-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.export-btn:hover {
+  background-color: #0056b3;
+}
