@@ -6,13 +6,16 @@ import SAPDashboard from './pages/SapDashboard';
 import CloudConnexaDashboard from './pages/CloudConnexaDashboard';
 import './App.css';
 
-function App() {
+import { withAuthenticator } from '@aws-amplify/ui-react';
+import '@aws-amplify/ui-react/styles.css'; // default Amplify UI styling
+
+function App({ signOut, user }) {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
 
   return (
     <Router>
       <div className={`App-container ${isSidebarOpen ? '' : 'sidebar-closed'}`}>
-        <Sidebar />
+        <Sidebar signOut={signOut} />
         <main className="main-content">
           <button className="sidebar-toggle" onClick={() => setSidebarOpen(!isSidebarOpen)}>
             ☰
@@ -36,4 +39,4 @@ function App() {
   );
 }
 
-export default App;
+export default withAuthenticator(App);

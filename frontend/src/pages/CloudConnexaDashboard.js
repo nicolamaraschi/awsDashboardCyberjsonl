@@ -524,10 +524,17 @@ const CloudConnexaDashboard = () => {
         </div>
       </div>
       
-      {loading && <div className="loader">Caricamento dati...</div>}
+      {loading ? (
+        <div className="loading-overlay">
+          <div className="loader"></div>
+          <p>Caricamento dati...</p>
+        </div>
+      ) : null}
       {error && <div className="error-message">{error}</div>}
       
-      {dashboardData && (
+      {!dashboardData ? (
+        <div className="no-data">Nessun dato disponibile per i filtri selezionati.</div>
+      ) : (
         <>
           <div className="kpi-grid">
             <KPICard 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 
-function Sidebar() {
+function Sidebar({ signOut }) {
   return (
     <nav className="sidebar">
       <div className="sidebar-header">
@@ -55,6 +55,11 @@ function Sidebar() {
           </NavLink>
         </li>
       </ul>
+      <div className="sidebar-footer">
+        <button onClick={signOut} className="logout-button">
+          Logout
+        </button>
+      </div>
     </nav>
   );
 }

@@ -1,0 +1,23 @@
+# Usa un'immagine base di Windows Server Core con Node.js LTS preinstallato
+# Puoi trovare immagini ufficiali su Docker Hub: https://hub.docker.com/_/microsoft-windows-servercore
+# Scegli una versione specifica, ad esempio ltsc2019 o 20H2
+FROM mcr.microsoft.com/windows/servercore:ltsc2019-amd64
+
+# Imposta la directory di lavoro all'interno del container
+WORKDIR C:\app
+
+# Copia i file package.json e package-lock.json per installare le dipendenze
+COPY package*.json ./
+
+# Installa le dipendenze di Node.js
+# Usa PowerShell per eseguire i comandi npm
+RUN powershell -Command npm install
+
+# Copia il resto del codice sorgente dell'applicazione
+COPY . .
+
+# Espone la porta su cui il backend è in ascolto
+EXPOSE 3001
+
+# Comando per avviare l'applicazione
+CMD [ "node", "index.js" ]

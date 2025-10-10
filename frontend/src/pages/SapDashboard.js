@@ -539,7 +539,12 @@ const SAPDashboard = () => {
         </div>
       </div>
       
-      {loading && <div className="loader">Caricamento dati...</div>}
+      {loading ? (
+        <div className="loading-overlay">
+          <div className="loader"></div>
+          <p>Caricamento dati...</p>
+        </div>
+      ) : null}
       {error && <div className="error-message">{error}</div>}
       
       {dashboardData && (

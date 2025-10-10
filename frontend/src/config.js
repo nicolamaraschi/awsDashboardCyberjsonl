@@ -19,8 +19,9 @@ const appConfig = {
    */
   cognito: {
     REGION: 'eu-west-1', // La regione del tuo User Pool (es. eu-west-1)
-    USER_POOL_ID: 'YOUR_COGNITO_USER_POOL_ID', // L'ID del tuo User Pool
-    APP_CLIENT_ID: 'YOUR_COGNITO_APP_CLIENT_ID', // L'ID del tuo App Client
+    USER_POOL_ID: 'eu-west-1_7WLST1Mlg', // L'ID del tuo User Pool
+    APP_CLIENT_ID: 'vpscdsoro31v6hioq7e52ktkv', // L'ID del tuo App Client
+    IDENTITY_POOL_ID: 'eu-west-1:36d062f2-d4f0-4b1d-ba60-5ce34cf991cc', // L'ID del tuo Identity Pool
   },
 };
 

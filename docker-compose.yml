@@ -1,15 +1,24 @@
 version: '3.8'
 
+# IMPORTANTE: Per usare questi Dockerfile basati su Windows, devi:
+# 1. Assicurarti che Docker Desktop sia impostato per usare "Windows containers".
+# 2. Le immagini Windows sono molto più grandi e i tempi di build/avvio possono essere più lunghi.
+# 3. Tutte le dipendenze Node.js devono essere compatibili con Windows.
+
 services:
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile.windows # Usa il Dockerfile specifico per Windows
     ports:
       - "3001:3001"
     volumes:
-      - ./backend:/usr/src/app
-      - /usr/src/app/node_modules
-      - ~/.aws:/root/.aws:ro
+      # I volumi per Windows containers hanno una sintassi leggermente diversa o potrebbero non essere sempre ideali
+      # per lo sviluppo live come su Linux. Per ora, li commentiamo per evitare problemi.
+      # - ./backend:/usr/src/app
+      # - /usr/src/app/node_modules
+      # Assicurati che le credenziali AWS siano disponibili nell'ambiente Docker Desktop o passale direttamente
+      # - ~/.aws:/root/.aws:ro # Questo percorso è per Linux, non funzionerà direttamente su Windows containers
     environment:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
@@ -20,10 +29,12 @@ services:
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile.windows # Usa il Dockerfile specifico per Windows
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/usr/src/app
-      - /usr/src/app/node_modules
+      # Anche qui, i volumi per Windows containers possono essere problematici per lo sviluppo live.
+      # - ./frontend:/usr/src/app
+      # - /usr/src/app/node_modules
     depends_on:
       - backend
