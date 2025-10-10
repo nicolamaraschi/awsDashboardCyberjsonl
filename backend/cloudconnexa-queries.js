@@ -1,6 +1,6 @@
 // ====================================================================
 // CLOUDCONNEXA QUERIES - Query per Dashboard CloudConnexa
-// VERSIONE COMPLETA CON SECURITY QUERIES
+// VERSIONE COMPLETA CON SECURITY QUERIES + CONNESSIONI CLIENTE
 // ====================================================================
 
 const sanitize = (value) => {
@@ -336,6 +336,23 @@ const sanitize = (value) => {
       LIMIT 15
     `;
   };
+
+  // Query 17: Connessioni Attive per Cliente (ultime 24 ore)
+  const getActiveConnectionsByCustomerQuery = (filters) => {
+    // Per questa query usiamo sempre le ultime 24 ore, ignorando i filtri di data
+    return `
+      SELECT 
+        COALESCE(NULLIF(log.destinationparentname, ''), 'Cliente Sconosciuto') as customer,
+        COUNT(DISTINCT log.sourceparentid) as active_connections,
+        MAX(timestamp) as last_update
+      FROM "cloudconnexa_logs_db"."extracted_logs_v2"
+      WHERE eventname = 'flow-established'
+        AND timestamp >= date_format(date_add('hour', -24, current_timestamp), '%Y-%m-%d %H:%i:%s')
+      GROUP BY COALESCE(NULLIF(log.destinationparentname, ''), 'Cliente Sconosciuto')
+      ORDER BY active_connections DESC
+      LIMIT 20
+    `;
+  };
   
   module.exports = {
     getSessionStatsQuery,
@@ -353,5 +370,6 @@ const sanitize = (value) => {
     getTopDestinationsQuery,
     getBlockedAccessAttemptsQuery,
     getNonStandardPortsQuery,
-    getAsymmetricTrafficQuery
+    getAsymmetricTrafficQuery,
+    getActiveConnectionsByCustomerQuery
   };

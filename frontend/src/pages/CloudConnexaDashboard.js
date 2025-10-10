@@ -126,7 +126,6 @@ const CloudConnexaDashboard = () => {
       setDashboardData(response.data);
       
       console.log('Dati ricevuti dal backend:', response.data);
-      console.log('asymmetricTraffic:', response.data?.charts?.asymmetricTraffic);
     } catch (err) {
       setError('Errore nel caricamento dei dati. Verifica la connessione al backend.');
       console.error('Errore dashboard CloudConnexa:', err);
@@ -385,6 +384,23 @@ const CloudConnexaDashboard = () => {
         backgroundColor: colors,
         borderWidth: 2,
         borderColor: 'rgba(255, 255, 255, 0.8)'
+      }]
+    };
+  };
+
+  // NUOVA FUNZIONE: Grafico connessioni attive per cliente
+  const getActiveConnectionsByCustomerData = () => {
+    if (!dashboardData?.charts?.activeConnectionsByCustomer) return null;
+    const data = dashboardData.charts.activeConnectionsByCustomer;
+    
+    return {
+      labels: data.map(item => item.customer || 'Unknown'),
+      datasets: [{
+        label: 'Connessioni Attive',
+        data: data.map(item => parseInt(item.active_connections || 0)),
+        backgroundColor: 'rgba(75, 192, 192, 0.7)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        borderWidth: 2
       }]
     };
   };
@@ -668,6 +684,51 @@ const CloudConnexaDashboard = () => {
                 <div className="no-data">Nessun dato disponibile</div>
               )}
             </div>
+
+            {/* NUOVO GRAFICO: Connessioni Attive per Cliente */}
+            <div className="chart-card">
+              <h2>🏢 Connessioni Attive per Cliente</h2>
+              <p className="chart-subtitle">Utenti unici connessi per cliente (ultime 24 ore)</p>
+              {getActiveConnectionsByCustomerData() ? (
+                <div className="chart-container">
+                  <Bar 
+                    data={getActiveConnectionsByCustomerData()} 
+                    options={{ 
+                      responsive: true, 
+                      maintainAspectRatio: false,
+                      indexAxis: 'y',
+                      plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                          callbacks: {
+                            label: function(context) {
+                              return `${context.parsed.x} connessioni attive`;
+                            }
+                          }
+                        }
+                      }, 
+                      scales: { 
+                        x: { 
+                          beginAtZero: true,
+                          title: {
+                            display: true,
+                            text: 'Numero di Connessioni Attive'
+                          }
+                        },
+                        y: {
+                          title: {
+                            display: true,
+                            text: 'Cliente'
+                          }
+                        }
+                      } 
+                    }} 
+                  />
+                </div>
+              ) : (
+                <div className="no-data">Nessun dato disponibile</div>
+              )}
+            </div>
           </div>
           
           {dashboardData.charts.topDestinations && dashboardData.charts.topDestinations.length > 0 && (
@@ -699,67 +760,160 @@ const CloudConnexaDashboard = () => {
           )}
           
           {dashboardData && dashboardData.charts && dashboardData.charts.asymmetricTraffic && Array.isArray(dashboardData.charts.asymmetricTraffic) && dashboardData.charts.asymmetricTraffic.length > 0 ? (
-  <div className="details-table">
-    <h2>Traffico Asimmetrico Anomalo</h2>
-    <p className="chart-subtitle" style={{ marginBottom: '1rem' }}>
-      Utenti con upload maggiore del download (possibile esfiltrazione dati)
-    </p>
-    <table>
-      <thead>
-        <tr>
-          <th>Utente</th>
-          <th>Sessioni</th>
-          <th>Download (GB)</th>
-          <th>Upload (GB)</th>
-          <th>Ratio Upload/Download</th>
-          <th>Rischio</th>
-        </tr>
-      </thead>
-      <tbody>
-        {dashboardData.charts.asymmetricTraffic.map((item, index) => {
-          const ratio = parseFloat(item.upload_download_ratio || 0);
-          const riskLevel = ratio > 10 ? 'ALTO' : ratio > 5 ? 'MEDIO' : 'BASSO';
-          const riskColor = ratio > 10 ? '#dc3545' : ratio > 5 ? '#ffc107' : '#28a745';
-          
-          return (
-            <tr key={`asymmetric-${index}`}>
-              <td style={{ minWidth: '250px' }}>
-                <strong style={{ color: '#333', fontSize: '14px' }}>
-                  {item.username}
-                </strong>
-              </td>
-              <td style={{ color: '#333' }}>{item.sessions}</td>
-              <td style={{ color: '#333' }}>{item.download_gb}</td>
-              <td style={{ color: '#dc3545', fontWeight: 'bold' }}>
-                {item.upload_gb}
-              </td>
-              <td style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#333' }}>
-                {ratio.toFixed(1)}:1
-              </td>
-              <td>
-                <span 
-                  style={{ 
-                    display: 'inline-block',
-                    padding: '0.3rem 0.8rem',
-                    backgroundColor: riskColor,
-                    color: 'white',
-                    borderRadius: '4px',
-                    fontWeight: 'bold',
-                    fontSize: '0.85rem'
-                  }}
-                >
-                  {riskLevel}
-                </span>
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  </div>
-) : null}
+            <div className="details-table">
+              <h2>Traffico Asimmetrico Anomalo</h2>
+              <p className="chart-subtitle" style={{ marginBottom: '1rem' }}>
+                Utenti con upload maggiore del download (possibile esfiltrazione dati)
+              </p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Utente</th>
+                    <th>Sessioni</th>
+                    <th>Download (GB)</th>
+                    <th>Upload (GB)</th>
+                    <th>Ratio Upload/Download</th>
+                    <th>Rischio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dashboardData.charts.asymmetricTraffic.map((item, index) => {
+                    const ratio = parseFloat(item.upload_download_ratio || 0);
+                    const riskLevel = ratio > 10 ? 'ALTO' : ratio > 5 ? 'MEDIO' : 'BASSO';
+                    const riskColor = ratio > 10 ? '#dc3545' : ratio > 5 ? '#ffc107' : '#28a745';
+                    
+                    return (
+                      <tr key={`asymmetric-${index}`}>
+                        <td style={{ minWidth: '250px' }}>
+                          <strong style={{ color: '#333', fontSize: '14px' }}>
+                            {item.username}
+                          </strong>
+                        </td>
+                        <td style={{ color: '#333' }}>{item.sessions}</td>
+                        <td style={{ color: '#333' }}>{item.download_gb}</td>
+                        <td style={{ color: '#dc3545', fontWeight: 'bold' }}>
+                          {item.upload_gb}
+                        </td>
+                        <td style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#333' }}>
+                          {ratio.toFixed(1)}:1
+                        </td>
+                        <td>
+                          <span 
+                            style={{ 
+                              display: 'inline-block',
+                              padding: '0.3rem 0.8rem',
+                              backgroundColor: riskColor,
+                              color: 'white',
+                              borderRadius: '4px',
+                              fontWeight: 'bold',
+                              fontSize: '0.85rem'
+                            }}
+                          >
+                            {riskLevel}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
 
-
+          {/* NUOVA TABELLA: Dettaglio Connessioni Attive per Cliente */}
+          {dashboardData?.charts?.activeConnectionsByCustomer && 
+           dashboardData.charts.activeConnectionsByCustomer.length > 0 && (
+            <div className="details-table">
+              <h2>📊 Dettaglio Connessioni Attive per Cliente</h2>
+              <p className="chart-subtitle" style={{ marginBottom: '1rem' }}>
+                Snapshot delle connessioni attive nelle ultime 24 ore
+              </p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Cliente</th>
+                    <th>Connessioni Attive</th>
+                    <th>Ultimo Aggiornamento</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dashboardData.charts.activeConnectionsByCustomer.map((item, index) => {
+                    const connections = parseInt(item.active_connections || 0);
+                    const lastUpdate = new Date(item.last_update);
+                    const minutesSinceUpdate = Math.floor((new Date() - lastUpdate) / 60000);
+                    
+                    // Determina lo stato basato sul numero di connessioni
+                    let statusColor, statusText;
+                    if (connections === 0) {
+                      statusColor = '#dc3545';
+                      statusText = 'Nessuna connessione';
+                    } else if (connections <= 2) {
+                      statusColor = '#ffc107';
+                      statusText = 'Basse connessioni';
+                    } else if (connections <= 5) {
+                      statusColor = '#28a745';
+                      statusText = 'Normale';
+                    } else {
+                      statusColor = '#17a2b8';
+                      statusText = 'Alto traffico';
+                    }
+                    
+                    return (
+                      <tr key={`active-conn-${index}`}>
+                        <td>
+                          <strong style={{ color: '#333', fontSize: '14px' }}>
+                            {item.customer === 'Cliente Sconosciuto' ? (
+                              <span style={{ color: '#999', fontStyle: 'italic' }}>
+                                {item.customer}
+                              </span>
+                            ) : (
+                              item.customer
+                            )}
+                          </strong>
+                        </td>
+                        <td style={{ 
+                          fontSize: '1.2rem', 
+                          fontWeight: 'bold', 
+                          color: statusColor 
+                        }}>
+                          {connections}
+                        </td>
+                        <td style={{ color: '#666' }}>
+                          {lastUpdate.toLocaleString('it-IT', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                          <br/>
+                          <small style={{ color: '#999' }}>
+                            ({minutesSinceUpdate} minuti fa)
+                          </small>
+                        </td>
+                        <td>
+                          <span 
+                            style={{ 
+                              display: 'inline-block',
+                              padding: '0.3rem 0.8rem',
+                              backgroundColor: statusColor,
+                              color: 'white',
+                              borderRadius: '4px',
+                              fontWeight: 'bold',
+                              fontSize: '0.85rem'
+                            }}
+                          >
+                            {statusText}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
     </div>

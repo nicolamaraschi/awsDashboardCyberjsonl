@@ -42,7 +42,8 @@ const {
   getTopDestinationsQuery,
   getBlockedAccessAttemptsQuery,
   getNonStandardPortsQuery,
-  getAsymmetricTrafficQuery
+  getAsymmetricTrafficQuery,
+  getActiveConnectionsByCustomerQuery
 } = require('./cloudconnexa-queries');
 
 const app = express();
@@ -137,7 +138,8 @@ app.post('/api/cloudconnexa/dashboard', async (req, res) => {
       prevBlockedDomains,
       blockedAccessAttempts,
       nonStandardPorts,
-      asymmetricTraffic
+      asymmetricTraffic,
+      activeConnectionsByCustomer
     ] = await Promise.all([
       runQuery(getSessionStatsQuery(filters)),
       runQuery(getBlockedDomainsQuery(filters)),
@@ -153,7 +155,8 @@ app.post('/api/cloudconnexa/dashboard', async (req, res) => {
       runQuery(getPreviousPeriodStats(filters, 'blocked')),
       runQuery(getBlockedAccessAttemptsQuery(filters)),
       runQuery(getNonStandardPortsQuery(filters)),
-      runQuery(getAsymmetricTrafficQuery(filters))
+      runQuery(getAsymmetricTrafficQuery(filters)),
+      runQuery(getActiveConnectionsByCustomerQuery(filters))
     ]);
 
     // Calcola i KPI dal primo risultato
@@ -239,7 +242,8 @@ app.post('/api/cloudconnexa/dashboard', async (req, res) => {
         topDestinations: topDestinations,
         blockedAccessAttempts: blockedAccessAttempts,
         nonStandardPorts: nonStandardPorts,
-        asymmetricTraffic: asymmetricTraffic
+        asymmetricTraffic: asymmetricTraffic,
+        activeConnectionsByCustomer: activeConnectionsByCustomer
       }
     });
 
